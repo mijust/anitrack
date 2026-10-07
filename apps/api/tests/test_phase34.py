@@ -97,3 +97,39 @@ async def test_anime_ask_topics_endpoint() -> None:
     assert "topics" in data
     assert any(t["id"] == "cyberpunk" for t in data["topics"])
     assert any(t["id"] == "psychological" for t in data["topics"])
+
+
+@pytest.mark.asyncio
+async def test_catalog_details_endpoint(monkeypatch: pytest.MonkeyPatch) -> None:
+    async def fake_execute(query: str, variables: dict) -> dict:
+        return {
+            "Media": {
+                "id": 12345,
+                "title": {"english": "Attack on Titan", "romaji": "Shingeki no Kyojin", "native": "進撃の巨人"},
+                "coverImage": {"extraLarge": "https://img.test/cover.jpg"},
+                "bannerImage": "https://img.test/banner.jpg",
+                "description": "Humans fight titans.<br>Epic battles.",
+                "averageScore": 90,
+                "popularity": 450000,
+                "format": "TV",
+                "status": "FINISHED",
+                "episodes": 25,
+                "duration": 24,
+                "genres": ["Action", "Fantasy"],
+                "studios": {"nodes": [{"id": 1, "name": "Wit Studio", "isAnimationStudio": True}]},
+                "trailer": {"id": "MGRm4IzK1SQ", "site": "youtube"},
+            }
+        }
+
+    monkeypatch.setattr(catalog.client, "execute", fake_execute)
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        response = await client.get("/api/catalog/details?id=12345")
+    assert response.status_code == 200
+    details = response.json()
+    assert details["anilist_id"] == 12345
+    assert details["title"] == "Attack on Titan"
+    assert details["romaji_title"] == "Shingeki no Kyojin"
+    assert details["native_title"] == "進撃の巨人"
+    assert "Humans fight titans. Epic battles." in details["description"]
+    assert details["studios"][0]["name"] == "Wit Studio"
+    assert details["trailer"]["site"] == "youtube"

@@ -11,6 +11,7 @@ import {
   SpinnerIcon,
   StarIcon,
 } from "@/components/icons";
+import { useAnimeDetail } from "@/components/anime-detail-modal";
 import { useEvaluation } from "@/components/evaluation-dialog";
 import { useWatchlist } from "@/components/watchlist-provider";
 import type { AnimeSearchResult } from "@/lib/api";
@@ -57,6 +58,7 @@ export function AnimeCard({
 }) {
   const { getEntry, isPending, addToWatchlist, requestRating, dismiss, remove } = useWatchlist();
   const { openEvaluation } = useEvaluation();
+  const { openDetails } = useAnimeDetail();
   const entry = getEntry(anime.anilist_id);
   const busy = isPending(anime.anilist_id);
   const isDismissed = entry?.status === "dismissed";
@@ -64,6 +66,14 @@ export function AnimeCard({
   const meta = [anime.episodes ? `${anime.episodes} Folgen` : null, anime.genres[0]]
     .filter(Boolean)
     .join(" · ");
+
+  function handleCardClick() {
+    openDetails({
+      anilist_id: anime.anilist_id,
+      title: anime.title,
+      cover_image: anime.cover_image,
+    });
+  }
 
   return (
     <article
@@ -73,7 +83,7 @@ export function AnimeCard({
         className,
       )}
     >
-      <div className="relative">
+      <div className="relative cursor-pointer" onClick={handleCardClick}>
         <Poster
           src={anime.cover_image}
           alt={anime.title}
@@ -127,7 +137,10 @@ export function AnimeCard({
             {isDismissed ? (
               <button
                 type="button"
-                onClick={() => void remove(entry)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  void remove(entry);
+                }}
                 className="col-span-4 flex h-8 items-center justify-center gap-1.5 rounded-xl bg-white/20 px-2.5 text-[11px] font-medium text-white transition hover:bg-white/30"
               >
                 Wiederherstellen
@@ -137,7 +150,10 @@ export function AnimeCard({
                 {/* 1. KI-Bewertung */}
                 <button
                   type="button"
-                  onClick={() => openEvaluation({ title: anime.title, cover_image: anime.cover_image, anilist_id: anime.anilist_id })}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    openEvaluation({ title: anime.title, cover_image: anime.cover_image, anilist_id: anime.anilist_id });
+                  }}
                   title="KI-Bewertung & Analyse"
                   aria-label={`${anime.title} mit KI bewerten`}
                   className="flex h-8 items-center justify-center rounded-xl bg-indigo-500/20 text-indigo-300 transition hover:bg-indigo-500/40 hover:text-white active:scale-90"
@@ -148,7 +164,10 @@ export function AnimeCard({
                 {/* 2. Watchlist */}
                 <button
                   type="button"
-                  onClick={() => void addToWatchlist(anime)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    void addToWatchlist(anime);
+                  }}
                   title={entry?.status === "planned" ? "Auf der Watchlist" : "Zur Watchlist hinzufügen"}
                   aria-label={`${anime.title} zur Watchlist`}
                   className={cn(
@@ -168,7 +187,10 @@ export function AnimeCard({
                 {/* 3. Watched (Gesehen) mit Sterne-Abfrage */}
                 <button
                   type="button"
-                  onClick={() => requestRating(anime)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    requestRating(anime);
+                  }}
                   title={
                     entry?.status === "completed"
                       ? `Gesehen (${entry.user_rating ? `${entry.user_rating}/10` : "bewertet"})`
@@ -188,7 +210,10 @@ export function AnimeCard({
                 {/* 4. Kein Interesse */}
                 <button
                   type="button"
-                  onClick={() => void dismiss(anime)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    void dismiss(anime);
+                  }}
                   title="Kein Interesse (nicht mehr vorschlagen)"
                   aria-label={`${anime.title}: Kein Interesse`}
                   className="flex h-8 items-center justify-center rounded-xl bg-white/10 text-white/70 transition hover:bg-rose-500/25 hover:text-rose-200 active:scale-90"
@@ -201,7 +226,11 @@ export function AnimeCard({
         )}
       </div>
 
-      <h3 className="mt-2.5 line-clamp-2 text-sm font-medium leading-snug text-foreground/90 transition group-hover:text-foreground" title={anime.title}>
+      <h3
+        onClick={handleCardClick}
+        className="mt-2.5 line-clamp-2 cursor-pointer text-sm font-medium leading-snug text-foreground/90 transition hover:text-indigo-400 group-hover:text-foreground"
+        title={anime.title}
+      >
         {anime.title}
       </h3>
       {meta && <p className="mt-0.5 truncate text-xs text-muted-foreground/80">{meta}</p>}

@@ -21,6 +21,7 @@ import {
   SpinnerIcon,
   StarIcon,
 } from "@/components/icons";
+import { useAnimeDetail } from "@/components/anime-detail-modal";
 import { useEvaluation } from "@/components/evaluation-dialog";
 import { useWatchlist } from "@/components/watchlist-provider";
 import { api, AnimeSearchResult } from "@/lib/api";
@@ -46,6 +47,7 @@ export function CommandSearchProvider({ children }: { children: ReactNode }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const { getEntry, isPending, addToWatchlist, requestRating, dismiss, remove } = useWatchlist();
   const { openEvaluation } = useEvaluation();
+  const { openDetails } = useAnimeDetail();
 
   const trimmed = query.trim();
   const searching = trimmed.length >= 2 && state.query !== trimmed;
@@ -203,13 +205,27 @@ export function CommandSearchProvider({ children }: { children: ReactNode }) {
                       isDismissed && "opacity-60",
                     )}
                   >
-                    <div className="relative h-16 w-11 shrink-0 overflow-hidden rounded-lg bg-muted ring-1 ring-border">
+                    <div
+                      onClick={() => {
+                        setOpen(false);
+                        openDetails({ anilist_id: anime.anilist_id, title: anime.title, cover_image: anime.cover_image });
+                      }}
+                      className="relative h-16 w-11 shrink-0 cursor-pointer overflow-hidden rounded-lg bg-muted ring-1 ring-border transition hover:scale-105"
+                      title="Details & Trailer öffnen"
+                    >
                       {anime.cover_image && (
                         <Image src={anime.cover_image} alt="" fill sizes="44px" className="object-cover" />
                       )}
                     </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-medium">{anime.title}</p>
+                    <div
+                      onClick={() => {
+                        setOpen(false);
+                        openDetails({ anilist_id: anime.anilist_id, title: anime.title, cover_image: anime.cover_image });
+                      }}
+                      className="min-w-0 flex-1 cursor-pointer"
+                      title="Details & Trailer öffnen"
+                    >
+                      <p className="truncate text-sm font-medium hover:text-indigo-400 transition">{anime.title}</p>
                       <p className="mt-0.5 flex items-center gap-1.5 truncate text-xs text-muted-foreground">
                         {score && (
                           <span className="inline-flex items-center gap-0.5 text-foreground/80">

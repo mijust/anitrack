@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { AnimeCard, Poster } from "@/components/anime-card";
+import { useAnimeDetail } from "@/components/anime-detail-modal";
 import { useCommandSearch } from "@/components/command-search";
 import { GridIcon, ListIcon, MinusIcon, PlusIcon, SearchIcon, TrashIcon } from "@/components/icons";
 import { Button, EmptyState } from "@/components/ui";
@@ -172,14 +173,25 @@ export default function ListPage() {
 
 function EntryRow({ entry }: { entry: AnimeEntry }) {
   const { update, remove } = useWatchlist();
+  const { openDetails } = useAnimeDetail();
+
+  function handleOpen() {
+    openDetails({
+      anilist_id: entry.anilist_id,
+      title: entry.title,
+      cover_image: entry.cover_image,
+    });
+  }
 
   return (
     <li className="animate-enter group flex gap-4 rounded-2xl border border-border/80 bg-card/70 p-3 transition-all hover:border-border-strong hover:bg-card">
-      <Poster src={entry.cover_image} alt={entry.title} sizes="56px" className="h-[84px] w-14 shrink-0 rounded-xl ring-1 ring-border" />
+      <div className="cursor-pointer" onClick={handleOpen}>
+        <Poster src={entry.cover_image} alt={entry.title} sizes="56px" className="h-[84px] w-14 shrink-0 rounded-xl ring-1 ring-border transition hover:scale-105" />
+      </div>
 
       <div className="flex min-w-0 flex-1 flex-col justify-between gap-3 sm:flex-row sm:items-center">
         <div className="min-w-0">
-          <p className="truncate font-medium text-foreground">{entry.title}</p>
+          <p onClick={handleOpen} className="cursor-pointer truncate font-medium text-foreground hover:text-indigo-400 transition">{entry.title}</p>
           <div className="mt-1.5">
             <StatusSelect value={entry.status} onChange={(status) => void update(entry, { status })} />
           </div>

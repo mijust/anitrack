@@ -2,6 +2,7 @@
 import type { Metadata, Viewport } from "next";
 import { Geist } from "next/font/google";
 import { AppHeader, MobileNav } from "@/components/app-shell";
+import { AnimeDetailProvider } from "@/components/anime-detail-modal";
 import { CommandSearchProvider } from "@/components/command-search";
 import { EvaluationProvider } from "@/components/evaluation-dialog";
 import { ThemeProvider } from "@/components/theme-provider";
@@ -31,11 +32,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <ToastProvider>
             <WatchlistProvider>
               <EvaluationProvider>
-                <CommandSearchProvider>
-                  <AppHeader />
-                  <main className="mx-auto w-full max-w-7xl px-4 pb-28 pt-6 sm:px-6 sm:pt-10 md:pb-16">{children}</main>
-                  <MobileNav />
-                </CommandSearchProvider>
+                <AnimeDetailProvider>
+                  <CommandSearchProvider>
+                    <AppHeader />
+                    <main className="mx-auto w-full max-w-7xl px-4 pb-28 pt-6 sm:px-6 sm:pt-10 md:pb-16">{children}</main>
+                    <MobileNav />
+                  </CommandSearchProvider>
+                </AnimeDetailProvider>
               </EvaluationProvider>
             </WatchlistProvider>
           </ToastProvider>

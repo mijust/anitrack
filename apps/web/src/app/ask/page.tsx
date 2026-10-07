@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, KeyboardEvent, useRef, useState } from "react";
+import { useAnimeDetail } from "@/components/anime-detail-modal";
 import { useCommandSearch } from "@/components/command-search";
 import { EvaluationView } from "@/components/evaluation-dialog";
 import { ArrowUpIcon, SearchIcon, SparklesIcon, SpinnerIcon } from "@/components/icons";
@@ -186,6 +187,7 @@ function ThinkingSkeleton({ mode }: { mode: Mode }) {
 
 function ResultView({ result }: { result: Result }) {
   const { openSearch } = useCommandSearch();
+  const { openDetails } = useAnimeDetail();
   const { response, mode, prompt } = result;
 
   // Wenn ein Anime im Modus "evaluate" bewertet wurde:
@@ -213,7 +215,14 @@ function ResultView({ result }: { result: Result }) {
               className="flex flex-col rounded-2xl border border-border/80 bg-card/70 p-4 transition-all hover:border-border-strong hover:bg-card"
             >
               <div className="flex items-start justify-between gap-3">
-                <p className="font-medium leading-snug">{item.title}</p>
+                <button
+                  type="button"
+                  onClick={() => openDetails({ title: item.title })}
+                  className="text-left font-medium leading-snug transition hover:text-indigo-400"
+                  title="Übersicht & Details öffnen"
+                >
+                  {item.title}
+                </button>
                 {item.score !== null && item.score !== undefined && (
                   <span className="shrink-0 rounded-full bg-indigo-500/10 border border-indigo-500/20 px-2.5 py-0.5 text-xs font-semibold tabular-nums text-indigo-400">
                     {Number(item.score).toFixed(item.score % 1 ? 1 : 0)}/10
@@ -221,14 +230,23 @@ function ResultView({ result }: { result: Result }) {
                 )}
               </div>
               <p className="mt-2 flex-1 text-sm leading-relaxed text-muted-foreground">{item.reason}</p>
-              <button
-                type="button"
-                onClick={() => openSearch(item.title)}
-                className="mt-4 inline-flex w-fit items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1 text-xs font-medium text-foreground/80 transition hover:border-indigo-500/40 hover:bg-indigo-500/10 hover:text-indigo-400"
-              >
-                <SearchIcon width={13} height={13} />
-                Finden & merken
-              </button>
+              <div className="mt-4 flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => openDetails({ title: item.title })}
+                  className="inline-flex items-center gap-1.5 rounded-full border border-indigo-500/30 bg-indigo-500/10 px-3 py-1 text-xs font-medium text-indigo-300 transition hover:bg-indigo-500/20 hover:text-white"
+                >
+                  Übersicht & Infos
+                </button>
+                <button
+                  type="button"
+                  onClick={() => openSearch(item.title)}
+                  className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1 text-xs font-medium text-foreground/80 transition hover:border-border-strong hover:text-foreground"
+                >
+                  <SearchIcon width={13} height={13} />
+                  Finden & merken
+                </button>
+              </div>
             </li>
           ))}
         </ul>

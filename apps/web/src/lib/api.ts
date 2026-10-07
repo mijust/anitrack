@@ -57,6 +57,57 @@ export type TopicItem = {
   category: "genre" | "theme";
 };
 
+export type AnimeStudio = {
+  id?: number | null;
+  name: string;
+  is_animation_studio: boolean;
+};
+
+export type AnimeTrailer = {
+  id?: string | null;
+  site?: string | null;
+  thumbnail?: string | null;
+};
+
+export type AnimeTag = {
+  name: string;
+  rank?: number | null;
+};
+
+export type NextAiring = {
+  episode: number;
+  airing_at: number;
+  time_until_airing: number;
+};
+
+export type AnimeDetails = {
+  anilist_id: number;
+  title: string;
+  romaji_title?: string | null;
+  native_title?: string | null;
+  cover_image?: string | null;
+  banner_image?: string | null;
+  description?: string | null;
+  score?: number | null;
+  mean_score?: number | null;
+  popularity?: number | null;
+  favourites?: number | null;
+  format?: string | null;
+  status?: string | null;
+  episodes?: number | null;
+  duration?: number | null;
+  season?: string | null;
+  season_year?: number | null;
+  start_date?: string | null;
+  end_date?: string | null;
+  genres: string[];
+  tags: AnimeTag[];
+  studios: AnimeStudio[];
+  trailer?: AnimeTrailer | null;
+  source?: string | null;
+  next_airing?: NextAiring | null;
+};
+
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
@@ -81,6 +132,12 @@ export const api = {
     return request<AnimeSearchResult[]>(`/api/catalog/seasonal?${params.toString()}`, { signal });
   },
   recommendations: (limit = 10, signal?: AbortSignal) => request<AnimeSearchResult[]>(`/api/recommendations?limit=${limit}`, { signal }),
+  details: (query: { id?: number; search?: string }, signal?: AbortSignal) => {
+    const params = new URLSearchParams();
+    if (query.id) params.set("id", String(query.id));
+    if (query.search) params.set("search", query.search);
+    return request<AnimeDetails>(`/api/catalog/details?${params.toString()}`, { signal });
+  },
   topics: (signal?: AbortSignal) => request<{ topics: TopicItem[] }>("/api/anime-ask/topics", { signal }),
   ask: (
     mode: "evaluate" | "recommend",

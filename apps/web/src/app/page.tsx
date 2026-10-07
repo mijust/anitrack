@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { AnimeCard, AnimeCardSkeleton, Poster } from "@/components/anime-card";
+import { useAnimeDetail } from "@/components/anime-detail-modal";
 import { SearchTrigger } from "@/components/command-search";
 import { ChevronLeftIcon, ChevronRightIcon, PlusIcon, SparklesIcon } from "@/components/icons";
 import { EmptyState, Rail, SectionHeader } from "@/components/ui";
@@ -64,6 +65,7 @@ function Hero() {
 
 function ContinueWatching() {
   const { entries, update } = useWatchlist();
+  const { openDetails } = useAnimeDetail();
   const watching = entries.filter((entry) => entry.status === "watching");
   if (watching.length === 0) return null;
 
@@ -84,16 +86,27 @@ function ContinueWatching() {
             key={entry.id}
             className="group flex w-72 shrink-0 snap-start items-center gap-3 rounded-2xl border border-border bg-card/60 p-2.5 pr-3 transition-colors hover:border-border-strong hover:bg-card"
           >
-            <Poster src={entry.cover_image} alt={entry.title} sizes="48px" className="h-[72px] w-12 shrink-0 rounded-lg ring-1 ring-border" />
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-medium leading-snug">{entry.title}</p>
+            <div
+              className="cursor-pointer"
+              onClick={() => openDetails({ anilist_id: entry.anilist_id, title: entry.title, cover_image: entry.cover_image })}
+            >
+              <Poster src={entry.cover_image} alt={entry.title} sizes="48px" className="h-[72px] w-12 shrink-0 rounded-lg ring-1 ring-border transition hover:scale-105" />
+            </div>
+            <div
+              className="min-w-0 flex-1 cursor-pointer"
+              onClick={() => openDetails({ anilist_id: entry.anilist_id, title: entry.title, cover_image: entry.cover_image })}
+            >
+              <p className="truncate text-sm font-medium leading-snug hover:text-indigo-400 transition">{entry.title}</p>
               <p className="mt-1 text-xs tabular-nums text-muted-foreground">
                 {entry.episodes_watched > 0 ? `Folge ${entry.episodes_watched} gesehen` : "Noch nicht begonnen"}
               </p>
             </div>
             <button
               type="button"
-              onClick={() => void update(entry, { episodes_watched: entry.episodes_watched + 1 })}
+              onClick={(e) => {
+                e.stopPropagation();
+                void update(entry, { episodes_watched: entry.episodes_watched + 1 });
+              }}
               title="Nächste Folge"
               aria-label={`Folge ${entry.episodes_watched + 1} von ${entry.title} als gesehen markieren`}
               className="grid size-8 shrink-0 place-items-center rounded-full bg-muted/80 text-foreground transition hover:bg-indigo-600 hover:text-white active:scale-95"

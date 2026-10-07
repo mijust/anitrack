@@ -1,9 +1,17 @@
+import re
 from typing import Any, List, Optional
 
 from fastapi import APIRouter, HTTPException, Query
 
 from app.core.config import get_settings
-from app.schemas.catalog import AnimeSearchResult
+from app.schemas.catalog import (
+    AnimeDetails,
+    AnimeSearchResult,
+    AnimeStudio,
+    AnimeTag,
+    AnimeTrailer,
+    NextAiring,
+)
 from app.services.anilist import AniListClient, AniListError, extract_preferred_title
 
 router = APIRouter(prefix="/api/catalog", tags=["catalog"])
@@ -65,6 +73,94 @@ query SeasonalAnime(
 }
 """
 
+ANIME_DETAILS_QUERY = """
+query AnimeDetails($id: Int, $search: String) {
+  Media(id: $id, search: $search, type: ANIME) {
+    id
+    title {
+      english
+      userPreferred
+      romaji
+      native
+    }
+    coverImage {
+      extraLarge
+      large
+    }
+    bannerImage
+    description(asHtml: false)
+    averageScore
+    meanScore
+    popularity
+    favourites
+    format
+    status
+    episodes
+    duration
+    season
+    seasonYear
+    startDate {
+      year
+      month
+      day
+    }
+    endDate {
+      year
+      month
+      day
+    }
+    genres
+    tags {
+      name
+      rank
+      isGeneralSpoiler
+      isMediaSpoiler
+    }
+    studios(isMain: true) {
+      nodes {
+        id
+        name
+        isAnimationStudio
+      }
+    }
+    trailer {
+      id
+      site
+      thumbnail
+    }
+    source
+    nextAiringEpisode {
+      episode
+      airingAt
+      timeUntilAiring
+    }
+  }
+}
+"""
+
+
+def format_fuzzy_date(d: Optional[dict[str, Any]]) -> Optional[str]:
+    if not d:
+        return None
+    year = d.get("year")
+    month = d.get("month")
+    day = d.get("day")
+    if not year:
+        return None
+    if month and day:
+        return f"{day:02d}.{month:02d}.{year}"
+    if month:
+        return f"{month:02d}.{year}"
+    return str(year)
+
+
+def clean_description(raw: Optional[str]) -> Optional[str]:
+    if not raw:
+        return None
+    text = re.sub(r"<[^>]+>", " ", raw)
+    text = re.sub(r"\s+", " ", text).strip()
+    return text or None
+
 
 def map_media_results(data: dict[str, Any]) -> List[AnimeSearchResult]:
     results = data.get("Page", {}).get("media", [])
@@ -91,6 +187,100 @@ async def search_anime(search: str = Query(min_length=2, max_length=100)) -> lis
     return map_media_results(data)
 
 
+@router.get("/details", response_model=AnimeDetails)
+async def anime_details(
+    id: Optional[int] = Query(default=None, ge=1),
+    search: Optional[str] = Query(default=None, min_length=1, max_length=120),
+) -> AnimeDetails:
+    if not id and not search:
+        raise HTTPException(status_code=400, detail="Entweder 'id' oder 'search' muss angegeben werden.")
+
+    variables: dict[str, Any] = {}
+    if id is not None:
+        variables["id"] = id
+    elif search is not None:
+        variables["search"] = search
+
+    try:
+        data: dict[str, Any] = await client.execute(ANIME_DETAILS_QUERY, variables)
+    except AniListError as error:
+        raise HTTPException(status_code=502, detail="AniList details unavailable") from error
+
+    media = data.get("Media")
+    if not media:
+        raise HTTPException(status_code=404, detail="Anime nicht gefunden.")
+
+    studios_raw = media.get("studios", {}).get("nodes", [])
+    studios = [
+        AnimeStudio(
+            id=s.get("id"),
+            name=s.get("name", "Unbekannt"),
+            is_animation_studio=bool(s.get("isAnimationStudio", True)),
+        )
+        for s in studios_raw
+        if s.get("name")
+    ]
+
+    tags_raw = media.get("tags", [])
+    tags = [
+        AnimeTag(name=t["name"], rank=t.get("rank"))
+        for t in tags_raw
+        if not t.get("isGeneralSpoiler") and not t.get("isMediaSpoiler") and t.get("name")
+    ]
+    tags.sort(key=lambda t: t.rank or 0, reverse=True)
+
+    trailer_raw = media.get("trailer")
+    trailer = (
+        AnimeTrailer(
+            id=trailer_raw.get("id"),
+            site=trailer_raw.get("site"),
+            thumbnail=trailer_raw.get("thumbnail"),
+        )
+        if trailer_raw and trailer_raw.get("id")
+        else None
+    )
+
+    next_airing_raw = media.get("nextAiringEpisode")
+    next_airing = (
+        NextAiring(
+            episode=next_airing_raw["episode"],
+            airing_at=next_airing_raw["airingAt"],
+            time_until_airing=next_airing_raw["timeUntilAiring"],
+        )
+        if next_airing_raw and "episode" in next_airing_raw
+        else None
+    )
+
+    title_obj = media.get("title", {})
+    return AnimeDetails(
+        anilist_id=media["id"],
+        title=extract_preferred_title(title_obj),
+        romaji_title=title_obj.get("romaji"),
+        native_title=title_obj.get("native"),
+        cover_image=media.get("coverImage", {}).get("extraLarge") or media.get("coverImage", {}).get("large"),
+        banner_image=media.get("bannerImage"),
+        description=clean_description(media.get("description")),
+        score=media.get("averageScore"),
+        mean_score=media.get("meanScore"),
+        popularity=media.get("popularity"),
+        favourites=media.get("favourites"),
+        format=media.get("format"),
+        status=media.get("status"),
+        episodes=media.get("episodes"),
+        duration=media.get("duration"),
+        season=media.get("season"),
+        season_year=media.get("seasonYear"),
+        start_date=format_fuzzy_date(media.get("startDate")),
+        end_date=format_fuzzy_date(media.get("endDate")),
+        genres=media.get("genres", []),
+        tags=tags[:15],
+        studios=studios,
+        trailer=trailer,
+        source=media.get("source"),
+        next_airing=next_airing,
+    )
+
+
 @router.get("/seasonal", response_model=List[AnimeSearchResult])
 async def seasonal_anime(
     season: str = Query(pattern="^(WINTER|SPRING|SUMMER|FALL)$"),
@@ -100,7 +290,7 @@ async def seasonal_anime(
     status: Optional[str] = Query(default=None, pattern="^(FINISHED|RELEASING|NOT_YET_RELEASED|CANCELLED|HIATUS)$"),
     min_score: Optional[int] = Query(default=None, ge=0, le=100),
     per_page: int = Query(default=24, ge=1, le=50),
-    ) -> List[AnimeSearchResult]:
+) -> List[AnimeSearchResult]:
     variables: dict[str, Any] = {
         "season": season,
         "year": year,
