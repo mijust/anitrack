@@ -169,6 +169,7 @@ function AnimeDetailModal({
                 alt={displayTitle}
                 fill
                 priority
+                unoptimized
                 sizes="(min-width: 768px) 768px, 100vw"
                 className="object-cover"
               />
@@ -433,6 +434,7 @@ function AnimeDetailModal({
                               src={details.trailer.thumbnail}
                               alt="Trailer Vorschau"
                               fill
+                              unoptimized
                               sizes="(min-width: 768px) 600px, 100vw"
                               className="object-cover transition duration-300 group-hover:scale-105 opacity-80"
                             />
