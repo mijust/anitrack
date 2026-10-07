@@ -2,10 +2,13 @@
 
 import { FormEvent, KeyboardEvent, useRef, useState } from "react";
 import { useCommandSearch } from "@/components/command-search";
+import { EvaluationView } from "@/components/evaluation-dialog";
 import { ArrowUpIcon, SearchIcon, SparklesIcon, SpinnerIcon } from "@/components/icons";
 import { useToast } from "@/components/toast";
+import { TopicSelector } from "@/components/topic-selector";
 import { useWatchlist } from "@/components/watchlist-provider";
 import { api, AnimeAskResponse } from "@/lib/api";
+import { useFavoriteTopics } from "@/lib/use-favorite-topics";
 import { cn, errorMessage } from "@/lib/utils";
 
 type Mode = "recommend" | "evaluate";
@@ -20,8 +23,8 @@ const MODES: { value: Mode; label: string; placeholder: string; suggestions: str
   {
     value: "evaluate",
     label: "Bewerten",
-    placeholder: "Welcher Anime? z. B. Vinland Saga",
-    suggestions: ["Vinland Saga", "Chainsaw Man", "Violet Evergarden", "Steins;Gate"],
+    placeholder: "Welcher Anime soll bewertet werden? z. B. Vinland Saga",
+    suggestions: ["Vinland Saga", "Chainsaw Man", "Violet Evergarden", "Steins;Gate", "Solo Leveling"],
   },
 ];
 
@@ -30,6 +33,7 @@ type Result = { prompt: string; mode: Mode; response: AnimeAskResponse };
 export default function AskPage() {
   const toast = useToast();
   const { entries } = useWatchlist();
+  const { selectedTopics } = useFavoriteTopics();
   const [mode, setMode] = useState<Mode>("recommend");
   const [prompt, setPrompt] = useState("");
   const [loading, setLoading] = useState(false);
@@ -42,7 +46,10 @@ export default function AskPage() {
     if (trimmed.length < 2 || loading) return;
     setLoading(true);
     try {
-      const response = await api.ask(mode, trimmed);
+      const response = await api.ask(mode, trimmed, {
+        animeTitle: mode === "evaluate" ? trimmed : undefined,
+        favoriteTopics: selectedTopics,
+      });
       setResult({ prompt: trimmed, mode, response });
     } catch (error) {
       toast(errorMessage(error, "Die KI ist gerade nicht erreichbar."), { tone: "error" });
@@ -64,7 +71,7 @@ export default function AskPage() {
   }
 
   return (
-    <div className="mx-auto max-w-2xl">
+    <div className="mx-auto max-w-2xl space-y-6">
       <div className="text-center">
         <span className="inline-grid size-12 place-items-center rounded-2xl bg-indigo-500/10 text-indigo-400 ring-1 ring-indigo-500/20 shadow-xs">
           <SparklesIcon width={22} height={22} />
@@ -72,12 +79,16 @@ export default function AskPage() {
         <h1 className="mt-4 text-2xl font-semibold tracking-tight sm:text-3xl">Frag die KI</h1>
         <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
           {entries.length > 0
-            ? `Kennt deine ${entries.length} gemerkten Anime und deine Bewertungen.`
-            : "Je mehr Anime du dir merkst und bewertest, desto besser werden die Antworten."}
+            ? `Kennt deine ${entries.length} gemerkten Anime, deine Sterne-Bewertungen und deine Lieblingsthemen.`
+            : "Je mehr Anime du dir merkst und bewertest, desto präziser werden die Antworten."}
         </p>
       </div>
 
-      <div role="tablist" aria-label="Modus" className="mx-auto mt-8 flex w-fit rounded-full border border-border bg-card/60 p-1 backdrop-blur-md">
+      {/* Lieblings-Topics / Kategorien-Auswahl */}
+      <TopicSelector />
+
+      {/* Modus-Umschalter: Empfehlen vs. Bewerten */}
+      <div role="tablist" aria-label="Modus" className="mx-auto flex w-fit rounded-full border border-border bg-card/60 p-1 backdrop-blur-md">
         {MODES.map((item) => (
           <button
             key={item.value}
@@ -100,9 +111,10 @@ export default function AskPage() {
         ))}
       </div>
 
+      {/* Eingabeformular */}
       <form
         onSubmit={onSubmit}
-        className="mt-5 rounded-3xl border border-border-strong/80 bg-card/80 p-2.5 shadow-xl shadow-black/5 backdrop-blur-md transition-all focus-within:border-indigo-500/50 focus-within:ring-2 focus-within:ring-indigo-500/10"
+        className="rounded-3xl border border-border-strong/80 bg-card/80 p-2.5 shadow-xl shadow-black/5 backdrop-blur-md transition-all focus-within:border-indigo-500/50 focus-within:ring-2 focus-within:ring-indigo-500/10"
       >
         <textarea
           ref={textareaRef}
@@ -127,8 +139,9 @@ export default function AskPage() {
         </div>
       </form>
 
+      {/* Vorschläge */}
       {!result && !loading && (
-        <div className="mt-4 flex flex-wrap justify-center gap-2">
+        <div className="flex flex-wrap justify-center gap-2">
           {current.suggestions.map((suggestion) => (
             <button
               key={suggestion}
@@ -145,19 +158,22 @@ export default function AskPage() {
         </div>
       )}
 
-      <div className="mt-10" aria-live="polite">
-        {loading ? <ThinkingSkeleton /> : result ? <ResultView result={result} /> : null}
+      {/* Ergebnis / Ladezustand */}
+      <div className="pt-2" aria-live="polite">
+        {loading ? <ThinkingSkeleton mode={mode} /> : result ? <ResultView result={result} /> : null}
       </div>
     </div>
   );
 }
 
-function ThinkingSkeleton() {
+function ThinkingSkeleton({ mode }: { mode: Mode }) {
   return (
     <div className="space-y-3">
       <p className="flex items-center gap-2 text-sm text-muted-foreground">
         <SparklesIcon width={14} height={14} className="animate-pulse text-indigo-400" />
-        Denkt nach … kostenlose Modelle brauchen manchmal ein paar Sekunden.
+        {mode === "evaluate"
+          ? "Prüfe Story, Animation, Ecchi, Gewalt und Passung zu deinen Sehgewohnheiten …"
+          : "Analysiere deine Liste und Vorlieben für Empfehlungen …"}
       </p>
       <div className="animate-pulse space-y-2">
         <div className="h-3.5 w-full rounded bg-muted" />
@@ -170,8 +186,18 @@ function ThinkingSkeleton() {
 
 function ResultView({ result }: { result: Result }) {
   const { openSearch } = useCommandSearch();
-  const { response } = result;
+  const { response, mode, prompt } = result;
 
+  // Wenn ein Anime im Modus "evaluate" bewertet wurde:
+  if (mode === "evaluate") {
+    return (
+      <div className="animate-enter rounded-3xl border border-border/80 bg-card/80 p-5 sm:p-6 shadow-xl backdrop-blur-md">
+        <EvaluationView target={{ title: prompt }} response={response} />
+      </div>
+    );
+  }
+
+  // Modus "recommend":
   return (
     <div className="animate-enter space-y-6">
       <div className="flex gap-5">

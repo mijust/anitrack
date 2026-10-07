@@ -58,3 +58,42 @@ def test_anime_ask_parses_surrounded_json_and_floats() -> None:
     assert response.score == 8.5
     assert len(response.recommendations) == 1
     assert response.recommendations[0].score == 9.5
+
+
+def test_anime_ask_parses_evaluation_structure() -> None:
+    raw = """```json
+    {
+      "answer": "Ein herausragender Anime für dich.",
+      "score": 9.2,
+      "evaluation": {
+        "title": "Chainsaw Man",
+        "synopsis": "Denji lebt als Teufelsjäger mit seinem Hund Pochita...",
+        "story_quality": "Rasant und unkonventionell.",
+        "animation_quality": "MAPPA liefert kinoreife Bildgewalt.",
+        "ecchi_level": "Moderat",
+        "violence_level": "Extrem / Gore",
+        "content_notes": "Sehr viel Blut und makabere Themen.",
+        "match_reason": "Weil du Jujutsu Kaisen mochtest.",
+        "verdict": "Absoluter Pflicht-Watch!"
+      }
+    }
+    ```"""
+    parsed = anime_ask.parse_llm_response(raw)
+    response = anime_ask.AnimeAskResponse.model_validate(parsed)
+    assert response.score == 9.2
+    assert response.evaluation is not None
+    assert response.evaluation.title == "Chainsaw Man"
+    assert response.evaluation.ecchi_level == "Moderat"
+    assert response.evaluation.violence_level == "Extrem / Gore"
+    assert "Pochita" in (response.evaluation.synopsis or "")
+
+
+@pytest.mark.asyncio
+async def test_anime_ask_topics_endpoint() -> None:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        response = await client.get("/api/anime-ask/topics")
+    assert response.status_code == 200
+    data = response.json()
+    assert "topics" in data
+    assert any(t["id"] == "cyberpunk" for t in data["topics"])
+    assert any(t["id"] == "psychological" for t in data["topics"])

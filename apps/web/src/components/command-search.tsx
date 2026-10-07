@@ -17,9 +17,11 @@ import {
   CheckIcon,
   EyeIcon,
   SearchIcon,
+  SparklesIcon,
   SpinnerIcon,
   StarIcon,
 } from "@/components/icons";
+import { useEvaluation } from "@/components/evaluation-dialog";
 import { useWatchlist } from "@/components/watchlist-provider";
 import { api, AnimeSearchResult } from "@/lib/api";
 import { cn, errorMessage, formatScore, isAbortError, STATUS_META } from "@/lib/utils";
@@ -43,6 +45,7 @@ export function CommandSearchProvider({ children }: { children: ReactNode }) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const { getEntry, isPending, addToWatchlist, requestRating, dismiss, remove } = useWatchlist();
+  const { openEvaluation } = useEvaluation();
 
   const trimmed = query.trim();
   const searching = trimmed.length >= 2 && state.query !== trimmed;
@@ -220,6 +223,19 @@ export function CommandSearchProvider({ children }: { children: ReactNode }) {
                     </div>
 
                     <div className="flex shrink-0 items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setOpen(false);
+                          openEvaluation({ title: anime.title, cover_image: anime.cover_image, anilist_id: anime.anilist_id });
+                        }}
+                        title="KI-Bewertung & Analyse"
+                        aria-label={`${anime.title} mit KI bewerten`}
+                        className="grid size-8 place-items-center rounded-full text-indigo-400 bg-indigo-500/10 hover:bg-indigo-500/20 transition active:scale-95"
+                      >
+                        <SparklesIcon width={13} height={13} />
+                      </button>
+
                       {busy ? (
                         <div className="grid size-8 place-items-center">
                           <SpinnerIcon width={16} height={16} className="text-muted-foreground" />

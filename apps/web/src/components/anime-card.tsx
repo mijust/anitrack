@@ -7,9 +7,11 @@ import {
   BookmarkIcon,
   CheckIcon,
   EyeIcon,
+  SparklesIcon,
   SpinnerIcon,
   StarIcon,
 } from "@/components/icons";
+import { useEvaluation } from "@/components/evaluation-dialog";
 import { useWatchlist } from "@/components/watchlist-provider";
 import type { AnimeSearchResult } from "@/lib/api";
 import { cn, formatScore, STATUS_META } from "@/lib/utils";
@@ -54,6 +56,7 @@ export function AnimeCard({
   className?: string;
 }) {
   const { getEntry, isPending, addToWatchlist, requestRating, dismiss, remove } = useWatchlist();
+  const { openEvaluation } = useEvaluation();
   const entry = getEntry(anime.anilist_id);
   const busy = isPending(anime.anilist_id);
   const isDismissed = entry?.status === "dismissed";
@@ -118,20 +121,31 @@ export function AnimeCard({
           </div>
         )}
 
-        {/* Aktionsleiste unten am Poster: Watchlist, Watched (Gesehen), Kein Interesse */}
+        {/* Aktionsleiste unten am Poster: KI-Bewertung, Watchlist, Watched (Gesehen), Kein Interesse */}
         {!busy && (
-          <div className="absolute inset-x-2 bottom-2 z-10 grid grid-cols-3 gap-1 rounded-2xl border border-white/15 bg-black/85 p-1 shadow-lg backdrop-blur-md transition-all duration-200 opacity-0 translate-y-1 group-hover:translate-y-0 group-hover:opacity-100 group-focus-within:translate-y-0 group-focus-within:opacity-100 [@media(hover:none)]:translate-y-0 [@media(hover:none)]:opacity-100">
+          <div className="absolute inset-x-1.5 bottom-2 z-10 grid grid-cols-4 gap-1 rounded-2xl border border-white/15 bg-black/85 p-1 shadow-lg backdrop-blur-md transition-all duration-200 opacity-0 translate-y-1 group-hover:translate-y-0 group-hover:opacity-100 group-focus-within:translate-y-0 group-focus-within:opacity-100 [@media(hover:none)]:translate-y-0 [@media(hover:none)]:opacity-100">
             {isDismissed ? (
               <button
                 type="button"
                 onClick={() => void remove(entry)}
-                className="col-span-3 flex h-8 items-center justify-center gap-1.5 rounded-xl bg-white/20 px-2.5 text-[11px] font-medium text-white transition hover:bg-white/30"
+                className="col-span-4 flex h-8 items-center justify-center gap-1.5 rounded-xl bg-white/20 px-2.5 text-[11px] font-medium text-white transition hover:bg-white/30"
               >
                 Wiederherstellen
               </button>
             ) : (
               <>
-                {/* 1. Watchlist */}
+                {/* 1. KI-Bewertung */}
+                <button
+                  type="button"
+                  onClick={() => openEvaluation({ title: anime.title, cover_image: anime.cover_image, anilist_id: anime.anilist_id })}
+                  title="KI-Bewertung & Analyse"
+                  aria-label={`${anime.title} mit KI bewerten`}
+                  className="flex h-8 items-center justify-center rounded-xl bg-indigo-500/20 text-indigo-300 transition hover:bg-indigo-500/40 hover:text-white active:scale-90"
+                >
+                  <SparklesIcon width={14} height={14} />
+                </button>
+
+                {/* 2. Watchlist */}
                 <button
                   type="button"
                   onClick={() => void addToWatchlist(anime)}
@@ -151,7 +165,7 @@ export function AnimeCard({
                   )}
                 </button>
 
-                {/* 2. Watched (Gesehen) mit Sterne-Abfrage */}
+                {/* 3. Watched (Gesehen) mit Sterne-Abfrage */}
                 <button
                   type="button"
                   onClick={() => requestRating(anime)}
@@ -171,7 +185,7 @@ export function AnimeCard({
                   <EyeIcon width={15} height={15} />
                 </button>
 
-                {/* 3. Kein Interesse */}
+                {/* 4. Kein Interesse */}
                 <button
                   type="button"
                   onClick={() => void dismiss(anime)}

@@ -32,10 +32,29 @@ export type SeasonSelection = {
   year: number;
 };
 
+export type AnimeEvaluation = {
+  title?: string;
+  synopsis?: string;
+  story_quality?: string;
+  animation_quality?: string;
+  ecchi_level?: string;
+  violence_level?: string;
+  content_notes?: string;
+  match_reason?: string;
+  verdict?: string;
+};
+
 export type AnimeAskResponse = {
   answer: string;
   score: number | null;
   recommendations: { title: string; score: number | null; reason: string }[];
+  evaluation?: AnimeEvaluation | null;
+};
+
+export type TopicItem = {
+  id: string;
+  label: string;
+  category: "genre" | "theme";
 };
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
@@ -62,10 +81,21 @@ export const api = {
     return request<AnimeSearchResult[]>(`/api/catalog/seasonal?${params.toString()}`, { signal });
   },
   recommendations: (limit = 10, signal?: AbortSignal) => request<AnimeSearchResult[]>(`/api/recommendations?limit=${limit}`, { signal }),
-  ask: (mode: "evaluate" | "recommend", prompt: string) =>
+  topics: (signal?: AbortSignal) => request<{ topics: TopicItem[] }>("/api/anime-ask/topics", { signal }),
+  ask: (
+    mode: "evaluate" | "recommend",
+    prompt: string,
+    options?: { animeTitle?: string; favoriteTopics?: string[]; signal?: AbortSignal }
+  ) =>
     request<AnimeAskResponse>("/api/anime-ask", {
       method: "POST",
-      body: JSON.stringify({ mode, prompt }),
+      signal: options?.signal,
+      body: JSON.stringify({
+        mode,
+        prompt,
+        anime_title: options?.animeTitle,
+        favorite_topics: options?.favoriteTopics ?? [],
+      }),
     }),
   entries: (status?: string, signal?: AbortSignal) =>
     request<AnimeEntry[]>(status ? `/api/anime-entries?status=${status}` : "/api/anime-entries", { signal }),
