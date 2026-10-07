@@ -28,13 +28,6 @@ class Settings(BaseSettings):
     openrouter_api_key: Optional[SecretStr] = None
     openrouter_model: str = "google/gemma-4-31b-it:free"
     frontend_url: str = "http://localhost:3000"
-    session_secret: str = "change-me-in-development"
-
-    @model_validator(mode="after")
-    def validate_production_security(self) -> "Settings":
-        if self.environment == "production" and len(self.session_secret) < 32:
-            raise ValueError("SESSION_SECRET must contain at least 32 characters in production")
-        return self
 
 
 @lru_cache

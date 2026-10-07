@@ -1,14 +1,13 @@
 "use client";
 
 import { FormEvent, useState } from "react";
-import { api, AnimeAskResponse, User } from "@/lib/api";
+import { api, AnimeAskResponse } from "@/lib/api";
 
 type AnimeAskProps = {
-  user: User | null;
   onError: (message: string) => void;
 };
 
-export function AnimeAsk({ user, onError }: AnimeAskProps) {
+export function AnimeAsk({ onError }: AnimeAskProps) {
   const [askMode, setAskMode] = useState<"evaluate" | "recommend">("recommend");
   const [askPrompt, setAskPrompt] = useState("");
   const [askResponse, setAskResponse] = useState<AnimeAskResponse | null>(null);
@@ -16,10 +15,6 @@ export function AnimeAsk({ user, onError }: AnimeAskProps) {
 
   async function handleAsk(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!user) {
-      onError("Bitte zuerst anmelden, um Anime Ask zu verwenden.");
-      return;
-    }
     const trimmed = askPrompt.trim();
     if (trimmed.length < 2) {
       onError("Bitte mindestens zwei Zeichen eingeben.");

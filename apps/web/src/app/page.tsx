@@ -3,16 +3,14 @@
 import { useEffect, useState } from "react";
 import { AnimeAsk } from "@/components/anime-ask";
 import { AnimeSearch } from "@/components/anime-search";
-import { AuthCard } from "@/components/auth-card";
 import { RecommendationsSection } from "@/components/recommendations-section";
 import { SeasonalSection } from "@/components/seasonal-section";
 import { WatchlistSection } from "@/components/watchlist-section";
-import { api, AnimeEntry, AnimeSearchResult, User } from "@/lib/api";
+import { api, AnimeEntry, AnimeSearchResult } from "@/lib/api";
 
 type StatusType = "all" | "watching" | "completed" | "planned" | "paused" | "dropped";
 
 export default function Home() {
-  const [user, setUser] = useState<User | null>(null);
   const [entries, setEntries] = useState<AnimeEntry[]>([]);
   const [statusFilter, setStatusFilter] = useState<StatusType>("all");
   const [message, setMessage] = useState("");
@@ -24,11 +22,6 @@ export default function Home() {
   }
 
   useEffect(() => {
-    void api.me().then(setUser).catch(() => undefined);
-  }, []);
-
-  useEffect(() => {
-    if (!user) return;
     const controller = new AbortController();
     void api
       .entries(statusFilter === "all" ? undefined : statusFilter, controller.signal)
@@ -38,13 +31,9 @@ export default function Home() {
         notify("Watchlist konnte nicht geladen werden.", true);
       });
     return () => controller.abort();
-  }, [user, statusFilter]);
+  }, [statusFilter]);
 
   async function handleAddToList(anime: AnimeSearchResult) {
-    if (!user) {
-      notify("Bitte zuerst anmelden.", true);
-      return;
-    }
     try {
       await api.createEntry(anime);
       notify(`${anime.title} wurde zur Liste hinzugefügt.`);
@@ -71,7 +60,7 @@ export default function Home() {
         <p className="text-sm uppercase tracking-[0.2em] text-accent">Anime Tracker</p>
         <h1 className="mt-3 text-4xl font-semibold tracking-tight text-text">Deine Watchlist</h1>
         <p className="mt-3 max-w-xl text-base text-text-muted">
-          Suche Anime, speichere deinen Status, entdecke saisonale Trends und behalte deine Bewertungen an einem Ort.
+          Suche Anime, verwalte deinen Watchlist-Status, entdecke saisonale Trends und erhalte KI-Empfehlungen direkt in deinem Heimnetzwerk.
         </p>
       </header>
 
@@ -95,57 +84,38 @@ export default function Home() {
         </div>
       )}
 
-      {/* Suche & Authentifizierung */}
-      <section className="grid gap-8 py-10 lg:grid-cols-[minmax(0,1fr)_18rem]">
+      {/* Anime Suche */}
+      <section className="py-10">
         <AnimeSearch
-          user={user}
           onAddToList={handleAddToList}
-          onError={(err) => notify(err, true)}
-        />
-        <AuthCard
-          user={user}
-          onLoginSuccess={(nextUser) => {
-            setUser(nextUser);
-            notify(`Willkommen zurück, ${nextUser.username}!`);
-          }}
-          onLogoutSuccess={() => {
-            setUser(null);
-            setEntries([]);
-            notify("Erfolgreich abgemeldet.");
-          }}
           onError={(err) => notify(err, true)}
         />
       </section>
 
       {/* Saisonale Übersicht */}
       <SeasonalSection
-        user={user}
         onAddToList={handleAddToList}
         onError={(err) => notify(err, true)}
       />
 
       {/* Personalisierte Empfehlungen */}
       <RecommendationsSection
-        user={user}
         onAddToList={handleAddToList}
         listCount={entries.length}
       />
 
       {/* KI-Assistent Anime Ask */}
       <AnimeAsk
-        user={user}
         onError={(err) => notify(err, true)}
       />
 
       {/* Persönliche Watchlist */}
-      {user && (
-        <WatchlistSection
-          entries={entries}
-          statusFilter={statusFilter}
-          onStatusFilterChange={setStatusFilter}
-          onMarkCompleted={handleMarkCompleted}
-        />
-      )}
+      <WatchlistSection
+        entries={entries}
+        statusFilter={statusFilter}
+        onStatusFilterChange={setStatusFilter}
+        onMarkCompleted={handleMarkCompleted}
+      />
     </main>
   );
 }

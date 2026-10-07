@@ -2,10 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { AnimeCard } from "@/components/anime-card";
-import { api, AnimeSearchResult, User } from "@/lib/api";
+import { api, AnimeSearchResult } from "@/lib/api";
 
 type RecommendationsSectionProps = {
-  user: User | null;
   onAddToList: (anime: AnimeSearchResult) => Promise<void>;
   listCount: number;
 };
@@ -14,15 +13,13 @@ function isAbortError(error: unknown): boolean {
   return error instanceof DOMException && error.name === "AbortError";
 }
 
-export function RecommendationsSection({ user, onAddToList, listCount }: RecommendationsSectionProps) {
+export function RecommendationsSection({ onAddToList, listCount }: RecommendationsSectionProps) {
   const [recommendations, setRecommendations] = useState<AnimeSearchResult[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [addingId, setAddingId] = useState<number | null>(null);
 
   useEffect(() => {
-    if (!user) return;
-
     const controller = new AbortController();
     void Promise.resolve()
       .then(() => {
@@ -45,11 +42,7 @@ export function RecommendationsSection({ user, onAddToList, listCount }: Recomme
       });
 
     return () => controller.abort();
-  }, [user, listCount]);
-
-  if (!user) {
-    return null;
-  }
+  }, [listCount]);
 
   async function handleAdd(anime: AnimeSearchResult) {
     setAddingId(anime.anilist_id);

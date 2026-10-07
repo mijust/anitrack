@@ -80,17 +80,19 @@ npm run dev
 
 ### Schritt 4: Testen im Browser (`http://localhost:3000`)
 
-1. **Konto anlegen**:
-   * Rechts unter *Dein Konto* Benutzername & Passwort eingeben $\rightarrow$ *Konto erstellen*.
-2. **AniList-Katalog & Suche**:
+*Kein Login / Account erforderlich – das Tool ist direkt voll einsatzbereit:*
+
+1. **AniList-Katalog & Suche**:
    * Gib einen Titel in die Suchleiste ein (z. B. *Frieren* oder *One Piece*).
-   * Klicke auf *Zur Liste hinzufügen* (Button zeigt Lade-Feedback).
-3. **Anime Ask (KI-Assistent)**:
+   * Klicke auf *Zur Liste hinzufügen* (Button zeigt Lade-Feedback und fügt den Anime direkt deiner Liste hinzu).
+2. **Anime Ask (KI-Assistent)**:
    * **Empfehlungen**: z. B. *„Ich suche spannende Mystery-Anime mit Fantasy-Setting.“*
    * **Bewerten**: z. B. *„Bewerte Death Note für mich.“*
    * Die Antwort enthält Score und detaillierte Begründungen.
-4. **Watchlist verwalten**:
+3. **Watchlist verwalten**:
    * Scrolle nach unten zu *Meine Liste*, filtere nach Status oder markiere Anime als abgeschlossen.
+4. **Saisonale Trends & Empfehlungen**:
+   * Sieh dir die aktuellen saisonalen Hits an und erhalte basierend auf deiner Watchlist KI-/Katalog-Empfehlungen.
 
 ---
 
@@ -166,9 +168,6 @@ POSTGRES_DB=anime
 
 # 2. BACKEND API
 ENVIRONMENT=production
-
-# Mindestens 32 Zeichen lang! (z. B. erzeugen via: openssl rand -hex 32)
-SESSION_SECRET=hier-deinen-langen-zufaelligen-hex-string-eintragen
 
 # Trage hier die IP-Adresse deines Proxmox LXC-Containers ein:
 FRONTEND_URL=http://192.168.1.150:3000

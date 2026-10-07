@@ -4,7 +4,7 @@ import structlog
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api import anime_ask, anime_entries, auth, catalog, recommendations
+from app.api import anime_ask, anime_entries, catalog, recommendations
 from app.core.config import get_settings
 from app.db.session import check_database, engine
 
@@ -36,7 +36,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-app.include_router(auth.router)
 app.include_router(anime_entries.router)
 app.include_router(catalog.router)
 app.include_router(anime_ask.router)

@@ -8,7 +8,7 @@ from app.models import Base
 
 
 @pytest.mark.asyncio
-async def test_auth_and_watchlist_flow() -> None:
+async def test_watchlist_flow() -> None:
     engine = create_async_engine("sqlite+aiosqlite:///:memory:")
     session_factory = async_sessionmaker(engine, expire_on_commit=False)
 
@@ -22,12 +22,6 @@ async def test_auth_and_watchlist_flow() -> None:
     app.dependency_overrides[get_db] = override_get_db
     try:
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-            register = await client.post(
-                "/api/auth/register",
-                json={"username": "mika", "password": "password123"},
-            )
-            assert register.status_code == 201
-
             create = await client.post(
                 "/api/anime-entries",
                 json={

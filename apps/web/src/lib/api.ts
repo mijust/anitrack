@@ -55,12 +55,6 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
 }
 
 export const api = {
-  me: () => request<User>("/api/auth/me"),
-  login: (username: string, password: string) =>
-    request<User>("/api/auth/login", { method: "POST", body: JSON.stringify({ username, password }) }),
-  register: (username: string, password: string) =>
-    request<User>("/api/auth/register", { method: "POST", body: JSON.stringify({ username, password }) }),
-  logout: () => request<void>("/api/auth/logout", { method: "POST" }),
   search: (query: string, signal?: AbortSignal) => request<AnimeSearchResult[]>(`/api/catalog/search?search=${encodeURIComponent(query)}`, { signal }),
   seasonal: (selection: SeasonSelection, genre?: string, signal?: AbortSignal) => {
     const params = new URLSearchParams({ season: selection.season, year: String(selection.year) });

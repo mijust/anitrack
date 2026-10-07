@@ -1,6 +1,6 @@
 ## Anime Tracker
 
-Monorepo für die Anime-Tracker-WebApp. Die aktuelle Umsetzung enthält Authentifizierung, AniList-Suche, saisonale Übersichten, Anime Ask, personalisierte Recommendations und eine persistente Watchlist mit PostgreSQL.
+Monorepo für die Anime-Tracker-WebApp. Die aktuelle Umsetzung ist für den lokalen Single-User-Betrieb optimiert (kein Login / Account erforderlich) und bietet AniList-Suche, saisonale Übersichten, Anime Ask (KI), personalisierte Recommendations und eine persistente Watchlist mit PostgreSQL oder SQLite.
 
 > 📖 **Schritt-für-Schritt Startup & Proxmox-Deployment Guide**: Siehe [startup.md](startup.md).
 
@@ -9,7 +9,7 @@ Monorepo für die Anime-Tracker-WebApp. Die aktuelle Umsetzung enthält Authenti
 
 - Node.js 20 oder neuer
 - Python 3.9 oder neuer
-- Docker Desktop für PostgreSQL
+- Docker Desktop für PostgreSQL (optional bei SQLite)
 
 ### Web-App starten
 
@@ -36,13 +36,12 @@ Sowohl Docker Compose, das FastAPI-Backend (`apps/api`) als auch das Next.js Fro
 | :--- | :---: | :--- | :--- |
 | **`OPENROUTER_API_KEY`** | **Für KI** | Erstelle einen kostenlosen API-Key auf [openrouter.ai/keys](https://openrouter.ai/keys). Wird für den KI-Assistenten *Anime Ask* benötigt. | *(leer / optional)* |
 | **`OPENROUTER_MODEL`** | Optional | Das gewünschte Sprachmodell auf OpenRouter. Standard ist ein kostenloses Modell. | `google/gemma-4-31b-it:free` |
-| **`SESSION_SECRET`** | **Ja** | Beliebiger geheimer String für Login-Session-Cookies. In Produktion mind. 32 Zeichen (z. B. via `openssl rand -hex 32`). | `change-me-to-a-very-secure-...` |
-| **`POSTGRES_USER`** | **Ja** | Benutzername für die lokale PostgreSQL-Datenbank (Docker). | `anime` |
-| **`POSTGRES_PASSWORD`** | **Ja** | Passwort für den PostgreSQL-Benutzer (Docker & Backend). | `securepassword` |
-| **`POSTGRES_DB`** | **Ja** | Name der Datenbank. | `anime` |
+| **`POSTGRES_USER`** | **Ja (bei Docker)** | Benutzername für die lokale PostgreSQL-Datenbank (Docker). | `anime` |
+| **`POSTGRES_PASSWORD`** | **Ja (bei Docker)** | Passwort für den PostgreSQL-Benutzer (Docker & Backend). | `securepassword` |
+| **`POSTGRES_DB`** | **Ja (bei Docker)** | Name der Datenbank. | `anime` |
 | **`POSTGRES_PORT`** | Optional | Port für den PostgreSQL-Container. | `5432` |
 | **`DATABASE_URL`** | **Ja** | Async-Connection-String für SQLAlchemy & Alembic Migrations. | `postgresql+asyncpg://anime:securepassword@localhost:5432/anime` |
-| **`FRONTEND_URL`** | **Ja** | URL des Next.js Frontends (für CORS & Cookie-Sicherheit). | `http://localhost:3000` |
+| **`FRONTEND_URL`** | **Ja** | URL des Next.js Frontends (für CORS). | `http://localhost:3000` |
 | **`NEXT_PUBLIC_API_URL`** | **Ja** | Öffentliche URL des FastAPI-Backends für Browser-Requests. | `http://localhost:8000` |
 | **`ANILIST_API_URL`** | Nein | Öffentliche AniList GraphQL API (**Kein API-Key erforderlich!**). | `https://graphql.anilist.co` |
 

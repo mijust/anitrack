@@ -2,10 +2,9 @@
 
 import { FormEvent, useRef, useState, useTransition } from "react";
 import { AnimeCard } from "@/components/anime-card";
-import { api, AnimeSearchResult, User } from "@/lib/api";
+import { api, AnimeSearchResult } from "@/lib/api";
 
 type AnimeSearchProps = {
-  user: User | null;
   onAddToList: (anime: AnimeSearchResult) => Promise<void>;
   onError: (message: string) => void;
 };
@@ -14,7 +13,7 @@ function isAbortError(error: unknown): boolean {
   return error instanceof DOMException && error.name === "AbortError";
 }
 
-export function AnimeSearch({ user, onAddToList, onError }: AnimeSearchProps) {
+export function AnimeSearch({ onAddToList, onError }: AnimeSearchProps) {
   const [query, setQuery] = useState("");
   const [submittedQuery, setSubmittedQuery] = useState("");
   const [results, setResults] = useState<AnimeSearchResult[]>([]);
@@ -52,10 +51,6 @@ export function AnimeSearch({ user, onAddToList, onError }: AnimeSearchProps) {
   }
 
   async function handleAdd(anime: AnimeSearchResult) {
-    if (!user) {
-      onError("Bitte zuerst anmelden, um Anime zu deiner Watchlist hinzuzufügen.");
-      return;
-    }
     setAddingId(anime.anilist_id);
     try {
       await onAddToList(anime);

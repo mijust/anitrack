@@ -3,10 +3,9 @@
 import { useRef, useState, useTransition } from "react";
 import { AnimeCard } from "@/components/anime-card";
 import { SeasonSelection, SeasonSelector } from "@/components/season-selector";
-import { api, AnimeSearchResult, User } from "@/lib/api";
+import { api, AnimeSearchResult } from "@/lib/api";
 
 type SeasonalSectionProps = {
-  user: User | null;
   onAddToList: (anime: AnimeSearchResult) => Promise<void>;
   onError: (message: string) => void;
 };
@@ -15,7 +14,7 @@ function isAbortError(error: unknown): boolean {
   return error instanceof DOMException && error.name === "AbortError";
 }
 
-export function SeasonalSection({ user, onAddToList, onError }: SeasonalSectionProps) {
+export function SeasonalSection({ onAddToList, onError }: SeasonalSectionProps) {
   const [seasonalResults, setSeasonalResults] = useState<AnimeSearchResult[]>([]);
   const [loading, setLoading] = useState(false);
   const [addingId, setAddingId] = useState<number | null>(null);
@@ -43,10 +42,6 @@ export function SeasonalSection({ user, onAddToList, onError }: SeasonalSectionP
   }
 
   async function handleAdd(anime: AnimeSearchResult) {
-    if (!user) {
-      onError("Bitte zuerst anmelden, um Anime zu deiner Liste hinzuzufügen.");
-      return;
-    }
     setAddingId(anime.anilist_id);
     try {
       await onAddToList(anime);
