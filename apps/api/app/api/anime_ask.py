@@ -80,9 +80,9 @@ async def anime_ask(
     entries = list((await db.scalars(select(AnimeEntry).where(AnimeEntry.user_id == user.id, AnimeEntry.status != "dismissed"))).all())
     profile = ", ".join(f"{entry.title} ({entry.user_rating or '-'} / 10)" for entry in entries[:20]) or "Keine gespeicherten Anime"
     if payload.mode == "evaluate":
-        system = "Bewerte, ob der angegebene Anime zum Nutzer passt. Antworte als JSON mit answer und score (1-10)."
+        system = "Bewerte, ob der angegebene Anime zum Nutzer passt. Antworte als JSON mit answer und score (1-10). Verwende bekannte deutsche bzw. internationale Anime-Titel (z. B. Attack on Titan statt Shingeki no Kyojin)."
     else:
-        system = "Empfehle 3 bis 5 Anime passend zum Nutzer. Antworte als JSON mit answer und recommendations; jede Empfehlung braucht title, score (1-10) und reason."
+        system = "Empfehle 3 bis 5 Anime passend zum Nutzer. Antworte als JSON mit answer und recommendations; jede Empfehlung braucht title, score (1-10) und reason. Verwende für die Anime-Titel stets die im deutschsprachigen Raum geläufigen internationalen/deutschen Titel (z. B. Attack on Titan statt Shingeki no Kyojin, Demon Slayer statt Kimetsu no Yaiba)."
     messages = [
         {"role": "system", "content": f"{system} Nutzerliste: {profile}"},
         {"role": "user", "content": payload.prompt},

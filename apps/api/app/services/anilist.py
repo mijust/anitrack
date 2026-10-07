@@ -65,3 +65,24 @@ class AniListClient:
             raise AniListError("AniList returned GraphQL errors")
         return body.get("data", {})
 
+
+def extract_preferred_title(title_obj: Optional[dict[str, Any]]) -> str:
+    """Bevorzugt den englischen/internationalen Titel (z. B. Attack on Titan, Demon Slayer).
+    Fällt auf userPreferred / romaji zurück, falls kein englischer Titel existiert."""
+    if not title_obj or not isinstance(title_obj, dict):
+        return "Untitled"
+    english = title_obj.get("english")
+    if english and isinstance(english, str) and english.strip():
+        return english.strip()
+    user_preferred = title_obj.get("userPreferred")
+    if user_preferred and isinstance(user_preferred, str) and user_preferred.strip():
+        return user_preferred.strip()
+    romaji = title_obj.get("romaji")
+    if romaji and isinstance(romaji, str) and romaji.strip():
+        return romaji.strip()
+    native = title_obj.get("native")
+    if native and isinstance(native, str) and native.strip():
+        return native.strip()
+    return "Untitled"
+
+

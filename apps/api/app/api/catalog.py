@@ -4,7 +4,7 @@ from fastapi import APIRouter, HTTPException, Query
 
 from app.core.config import get_settings
 from app.schemas.catalog import AnimeSearchResult
-from app.services.anilist import AniListClient, AniListError
+from app.services.anilist import AniListClient, AniListError, extract_preferred_title
 
 router = APIRouter(prefix="/api/catalog", tags=["catalog"])
 settings = get_settings()
@@ -15,7 +15,11 @@ query SearchAnime($search: String!) {
   Page(perPage: 12) {
     media(search: $search, type: ANIME, sort: SEARCH_MATCH) {
       id
-      title { userPreferred }
+      title {
+        english
+        userPreferred
+        romaji
+      }
       coverImage { large }
       averageScore
       episodes
@@ -47,7 +51,11 @@ query SeasonalAnime(
       sort: POPULARITY_DESC
     ) {
       id
-      title { userPreferred }
+      title {
+        english
+        userPreferred
+        romaji
+      }
       coverImage { large }
       averageScore
       episodes
@@ -63,7 +71,7 @@ def map_media_results(data: dict[str, Any]) -> List[AnimeSearchResult]:
     return [
         AnimeSearchResult(
             anilist_id=item["id"],
-            title=item["title"]["userPreferred"],
+            title=extract_preferred_title(item.get("title")),
             cover_image=item.get("coverImage", {}).get("large"),
             score=item.get("averageScore"),
             episodes=item.get("episodes"),
@@ -93,15 +101,20 @@ async def seasonal_anime(
     min_score: Optional[int] = Query(default=None, ge=0, le=100),
     per_page: int = Query(default=24, ge=1, le=50),
     ) -> List[AnimeSearchResult]:
-    variables = {
+    variables: dict[str, Any] = {
         "season": season,
         "year": year,
-        "genres": [genre] if genre else None,
-        "format": format,
-        "status": status,
-        "minScore": min_score,
         "perPage": per_page,
     }
+    if genre:
+        variables["genres"] = [genre]
+    if format:
+        variables["format"] = format
+    if status:
+        variables["status"] = status
+    if min_score is not None:
+        variables["minScore"] = min_score
+
     try:
         data = await client.execute(SEASONAL_QUERY, variables)
     except AniListError as error:

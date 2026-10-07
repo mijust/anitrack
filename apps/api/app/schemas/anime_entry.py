@@ -17,6 +17,8 @@ class AnimeEntryCreate(BaseModel):
 
 
 class AnimeEntryUpdate(BaseModel):
+    title: Optional[str] = Field(default=None, min_length=1, max_length=255)
+    cover_image: Optional[str] = Field(default=None, max_length=500)
     user_rating: Optional[int] = Field(default=None, ge=1, le=10)
     status: Optional[AnimeStatus] = None
     episodes_watched: Optional[int] = Field(default=None, ge=0)

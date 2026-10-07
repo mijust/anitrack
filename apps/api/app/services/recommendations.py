@@ -4,7 +4,7 @@ import time
 from typing import Any, Dict, List, Optional, Set, Tuple
 
 from app.schemas.catalog import AnimeSearchResult
-from app.services.anilist import AniListClient
+from app.services.anilist import AniListClient, extract_preferred_title
 
 logger = logging.getLogger(__name__)
 
@@ -16,7 +16,11 @@ query Recommendations($id: Int!) {
         rating
         mediaRecommendation {
           id
-          title { userPreferred }
+          title {
+            english
+            userPreferred
+            romaji
+          }
           coverImage { large }
           averageScore
           episodes
@@ -105,7 +109,7 @@ class RecommendationService:
                     continue
                 result = AnimeSearchResult(
                     anilist_id=media_id,
-                    title=media.get("title", {}).get("userPreferred", "Untitled"),
+                    title=extract_preferred_title(media.get("title")),
                     cover_image=media.get("coverImage", {}).get("large"),
                     score=media.get("averageScore"),
                     episodes=media.get("episodes"),

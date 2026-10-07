@@ -66,3 +66,38 @@ async def test_watchlist_flow() -> None:
     finally:
         app.dependency_overrides.clear()
         await engine.dispose()
+
+
+def test_extract_preferred_title():
+    from app.services.anilist import extract_preferred_title
+
+    # Prefers English if available
+    assert extract_preferred_title({
+        "english": "Attack on Titan",
+        "romaji": "Shingeki no Kyojin",
+        "userPreferred": "Shingeki no Kyojin",
+    }) == "Attack on Titan"
+
+    # Falls back to userPreferred if english is None or empty
+    assert extract_preferred_title({
+        "english": None,
+        "romaji": "Bocchi the Rock!",
+        "userPreferred": "Bocchi the Rock!",
+    }) == "Bocchi the Rock!"
+
+    assert extract_preferred_title({
+        "english": "   ",
+        "romaji": "Solo Leveling",
+        "userPreferred": "Ore dake Level Up na Ken",
+    }) == "Ore dake Level Up na Ken"
+
+    # Falls back to romaji if userPreferred is missing
+    assert extract_preferred_title({
+        "english": None,
+        "romaji": "Sousou no Frieren",
+    }) == "Sousou no Frieren"
+
+    # Empty or None returns Untitled
+    assert extract_preferred_title(None) == "Untitled"
+    assert extract_preferred_title({}) == "Untitled"
+
