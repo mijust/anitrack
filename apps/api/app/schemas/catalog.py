@@ -35,6 +35,17 @@ class NextAiring(BaseModel):
     time_until_airing: int
 
 
+class AnimeRelation(BaseModel):
+    id: int
+    relation_type: str
+    title: str
+    format: Optional[str] = None
+    status: Optional[str] = None
+    episodes: Optional[int] = None
+    season_year: Optional[int] = None
+    cover_image: Optional[str] = None
+
+
 class AnimeDetails(BaseModel):
     anilist_id: int
     title: str
@@ -61,3 +72,5 @@ class AnimeDetails(BaseModel):
     trailer: Optional[AnimeTrailer] = None
     source: Optional[str] = None
     next_airing: Optional[NextAiring] = None
+    relations: List[AnimeRelation] = Field(default_factory=list)
+

@@ -15,6 +15,7 @@ import { useAnimeDetail } from "@/components/anime-detail-modal";
 import { useEvaluation } from "@/components/evaluation-dialog";
 import { useWatchlist } from "@/components/watchlist-provider";
 import type { AnimeSearchResult } from "@/lib/api";
+import type { GroupedAnime } from "@/lib/grouping";
 import { cn, formatScore, STATUS_META } from "@/lib/utils";
 
 export function Poster({
@@ -53,25 +54,38 @@ export function AnimeCard({
   anime,
   className,
 }: {
-  anime: AnimeSearchResult;
+  anime: AnimeSearchResult | GroupedAnime<AnimeSearchResult>;
   className?: string;
 }) {
   const { getEntry, isPending, addToWatchlist, requestRating, dismiss, remove } = useWatchlist();
   const { openEvaluation } = useEvaluation();
   const { openDetails } = useAnimeDetail();
+
+  const seasonCount = "seasonCount" in anime ? anime.seasonCount : 1;
+  const franchiseTitle =
+    "franchiseTitle" in anime && anime.franchiseTitle ? anime.franchiseTitle : anime.title;
+  const totalEpisodes = "totalEpisodes" in anime ? anime.totalEpisodes : anime.episodes;
+  const seasons = "seasons" in anime ? anime.seasons : undefined;
+
   const entry = getEntry(anime.anilist_id);
   const busy = isPending(anime.anilist_id);
   const isDismissed = entry?.status === "dismissed";
   const score = formatScore(anime.score);
-  const meta = [anime.episodes ? `${anime.episodes} Folgen` : null, anime.genres[0]]
+  const meta = [
+    seasonCount > 1 ? `${seasonCount} Staffeln` : null,
+    totalEpisodes ? `${totalEpisodes} Folgen` : null,
+    anime.genres[0],
+  ]
     .filter(Boolean)
     .join(" · ");
 
   function handleCardClick() {
     openDetails({
       anilist_id: anime.anilist_id,
-      title: anime.title,
+      title: franchiseTitle,
       cover_image: anime.cover_image,
+      seasons,
+      franchiseTitle,
     });
   }
 
@@ -97,16 +111,21 @@ export function AnimeCard({
         {/* Sanfter Gradient auf Hover */}
         <div className="pointer-events-none absolute inset-0 rounded-2xl bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100 group-focus-within:opacity-100 [@media(hover:none)]:opacity-100" />
 
-        {/* Top Badges: Score & Status */}
+        {/* Top Badges: Score, Season Count & Status */}
         <div className="pointer-events-none absolute inset-x-2 top-2 z-10 flex items-center justify-between gap-1">
-          {score ? (
-            <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-black/65 px-2 py-0.5 text-[11px] font-medium text-white shadow-sm backdrop-blur-md">
-              <StarIcon width={11} height={11} className="fill-current text-amber-400" />
-              {score}
-            </span>
-          ) : (
-            <span />
-          )}
+          <div className="flex items-center gap-1">
+            {score ? (
+              <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-black/65 px-2 py-0.5 text-[11px] font-medium text-white shadow-sm backdrop-blur-md">
+                <StarIcon width={11} height={11} className="fill-current text-amber-400" />
+                {score}
+              </span>
+            ) : null}
+            {seasonCount > 1 && (
+              <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-indigo-950/85 border border-indigo-400/40 px-2 py-0.5 text-[10px] font-semibold text-indigo-200 shadow-sm backdrop-blur-md">
+                {seasonCount} Staffeln
+              </span>
+            )}
+          </div>
 
           {entry && (
             <span
@@ -229,9 +248,9 @@ export function AnimeCard({
       <h3
         onClick={handleCardClick}
         className="mt-2.5 line-clamp-2 cursor-pointer text-sm font-medium leading-snug text-foreground/90 transition hover:text-indigo-400 group-hover:text-foreground"
-        title={anime.title}
+        title={franchiseTitle}
       >
-        {anime.title}
+        {franchiseTitle}
       </h3>
       {meta && <p className="mt-0.5 truncate text-xs text-muted-foreground/80">{meta}</p>}
     </article>

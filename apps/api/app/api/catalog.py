@@ -6,6 +6,7 @@ from fastapi import APIRouter, HTTPException, Query
 from app.core.config import get_settings
 from app.schemas.catalog import (
     AnimeDetails,
+    AnimeRelation,
     AnimeSearchResult,
     AnimeStudio,
     AnimeTag,
@@ -129,6 +130,27 @@ query AnimeDetails($id: Int, $search: String) {
       thumbnail
     }
     source
+    relations {
+      edges {
+        relationType
+        node {
+          id
+          type
+          format
+          status
+          episodes
+          seasonYear
+          title {
+            english
+            userPreferred
+            romaji
+          }
+          coverImage {
+            large
+          }
+        }
+      }
+    }
     nextAiringEpisode {
       episode
       airingAt
@@ -251,6 +273,25 @@ async def anime_details(
         else None
     )
 
+    relations_raw = media.get("relations", {}).get("edges", [])
+    relations: list[AnimeRelation] = []
+    for edge in relations_raw:
+        node = edge.get("node")
+        if not node or node.get("type") != "ANIME":
+            continue
+        relations.append(
+            AnimeRelation(
+                id=node["id"],
+                relation_type=edge.get("relationType", "OTHER"),
+                title=extract_preferred_title(node.get("title")),
+                format=node.get("format"),
+                status=node.get("status"),
+                episodes=node.get("episodes"),
+                season_year=node.get("seasonYear"),
+                cover_image=node.get("coverImage", {}).get("large"),
+            )
+        )
+
     title_obj = media.get("title", {})
     return AnimeDetails(
         anilist_id=media["id"],
@@ -278,6 +319,7 @@ async def anime_details(
         trailer=trailer,
         source=media.get("source"),
         next_airing=next_airing,
+        relations=relations,
     )
 
 

@@ -8,6 +8,7 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useMemo,
   useRef,
   useState,
 } from "react";
@@ -25,6 +26,7 @@ import { useAnimeDetail } from "@/components/anime-detail-modal";
 import { useEvaluation } from "@/components/evaluation-dialog";
 import { useWatchlist } from "@/components/watchlist-provider";
 import { api, AnimeSearchResult } from "@/lib/api";
+import { groupAnimeByFranchise } from "@/lib/grouping";
 import { cn, errorMessage, formatScore, isAbortError, STATUS_META } from "@/lib/utils";
 
 type SearchContextValue = { openSearch: (query?: string) => void };
@@ -45,13 +47,17 @@ export function CommandSearchProvider({ children }: { children: ReactNode }) {
   const [active, setActive] = useState(0);
   const dialogRef = useRef<HTMLDialogElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  const { getEntry, isPending, addToWatchlist, requestRating, dismiss, remove } = useWatchlist();
+  const { getEntry, isPending, addToWatchlist, requestRating, dismiss, remove, groupSeasons, toggleGroupSeasons } = useWatchlist();
   const { openEvaluation } = useEvaluation();
   const { openDetails } = useAnimeDetail();
 
   const trimmed = query.trim();
   const searching = trimmed.length >= 2 && state.query !== trimmed;
-  const results = trimmed.length >= 2 ? state.results : [];
+  const searchResults = state.results;
+  const displayResults = useMemo(() => {
+    const raw = trimmed.length >= 2 ? searchResults : [];
+    return groupSeasons ? groupAnimeByFranchise(raw) : raw;
+  }, [groupSeasons, trimmed.length, searchResults]);
 
   const openSearch = useCallback((initial?: string) => {
     if (initial !== undefined) setQuery(initial);
@@ -111,16 +117,16 @@ export function CommandSearchProvider({ children }: { children: ReactNode }) {
   }, [trimmed]);
 
   function onInputKeyDown(event: KeyboardEvent<HTMLInputElement>) {
-    if (!results.length) return;
+    if (!displayResults.length) return;
     if (event.key === "ArrowDown") {
       event.preventDefault();
-      setActive((index) => (index + 1) % results.length);
+      setActive((index) => (index + 1) % displayResults.length);
     } else if (event.key === "ArrowUp") {
       event.preventDefault();
-      setActive((index) => (index - 1 + results.length) % results.length);
+      setActive((index) => (index - 1 + displayResults.length) % displayResults.length);
     } else if (event.key === "Enter") {
       event.preventDefault();
-      const anime = results[active];
+      const anime = displayResults[active];
       if (anime && !getEntry(anime.anilist_id)) void addToWatchlist(anime);
     }
   }
@@ -154,18 +160,33 @@ export function CommandSearchProvider({ children }: { children: ReactNode }) {
             onKeyDown={onInputKeyDown}
             placeholder="Anime suchen – z. B. Frieren, Dandadan …"
             role="combobox"
-            aria-expanded={results.length > 0}
+            aria-expanded={displayResults.length > 0}
             aria-controls="search-results"
-            aria-activedescendant={results.length ? `search-option-${active}` : undefined}
+            aria-activedescendant={displayResults.length ? `search-option-${active}` : undefined}
             className="h-14 flex-1 bg-transparent text-base outline-none placeholder:text-muted-foreground"
           />
-          <button
-            type="button"
-            onClick={() => setOpen(false)}
-            className="rounded-md border border-border px-1.5 py-0.5 text-[11px] font-medium text-muted-foreground hover:text-foreground"
-          >
-            Esc
-          </button>
+          <div className="flex items-center gap-1.5">
+            <button
+              type="button"
+              onClick={toggleGroupSeasons}
+              title={groupSeasons ? "Staffeln einzeln anzeigen" : "Staffeln zusammenfassen"}
+              className={cn(
+                "rounded-md border px-2 py-0.5 text-[11px] font-medium transition",
+                groupSeasons
+                  ? "border-indigo-500/40 bg-indigo-500/15 text-indigo-300"
+                  : "border-border text-muted-foreground hover:text-foreground",
+              )}
+            >
+              {groupSeasons ? "Gruppiert" : "Einzeln"}
+            </button>
+            <button
+              type="button"
+              onClick={() => setOpen(false)}
+              className="rounded-md border border-border px-1.5 py-0.5 text-[11px] font-medium text-muted-foreground hover:text-foreground"
+            >
+              Esc
+            </button>
+          </div>
         </div>
 
         <div className="max-h-[min(60vh,520px)] overflow-y-auto p-2">
@@ -179,19 +200,33 @@ export function CommandSearchProvider({ children }: { children: ReactNode }) {
             <div className="px-3 py-10 text-center text-sm text-danger">{state.error}</div>
           )}
 
-          {trimmed.length >= 2 && !searching && !state.error && results.length === 0 && (
+          {trimmed.length >= 2 && !searching && !state.error && displayResults.length === 0 && (
             <div className="px-3 py-10 text-center text-sm text-muted-foreground">
               Nichts gefunden für „{trimmed}“.
             </div>
           )}
 
-          {results.length > 0 && (
+          {displayResults.length > 0 && (
             <ul id="search-results" role="listbox" className={cn("space-y-0.5", searching && "opacity-60")}>
-              {results.map((anime, index) => {
+              {displayResults.map((anime, index) => {
                 const entry = getEntry(anime.anilist_id);
                 const busy = isPending(anime.anilist_id);
                 const isDismissed = entry?.status === "dismissed";
                 const score = formatScore(anime.score);
+                const seasonCount: number =
+                  "seasonCount" in anime && typeof anime.seasonCount === "number"
+                    ? anime.seasonCount
+                    : 1;
+                const franchiseTitle: string =
+                  "franchiseTitle" in anime && typeof anime.franchiseTitle === "string"
+                    ? anime.franchiseTitle
+                    : anime.title;
+                const seasons =
+                  "seasons" in anime && Array.isArray(anime.seasons) ? anime.seasons : undefined;
+                const totalEpisodes: number | null =
+                  "totalEpisodes" in anime && typeof anime.totalEpisodes === "number"
+                    ? anime.totalEpisodes
+                    : anime.episodes ?? null;
                 return (
                   <li
                     key={anime.anilist_id}
@@ -208,7 +243,13 @@ export function CommandSearchProvider({ children }: { children: ReactNode }) {
                     <div
                       onClick={() => {
                         setOpen(false);
-                        openDetails({ anilist_id: anime.anilist_id, title: anime.title, cover_image: anime.cover_image });
+                        openDetails({
+                          anilist_id: anime.anilist_id,
+                          title: franchiseTitle,
+                          cover_image: anime.cover_image,
+                          seasons,
+                          franchiseTitle,
+                        });
                       }}
                       className="relative h-16 w-11 shrink-0 cursor-pointer overflow-hidden rounded-lg bg-muted ring-1 ring-border transition hover:scale-105"
                       title="Details & Trailer öffnen"
@@ -220,12 +261,18 @@ export function CommandSearchProvider({ children }: { children: ReactNode }) {
                     <div
                       onClick={() => {
                         setOpen(false);
-                        openDetails({ anilist_id: anime.anilist_id, title: anime.title, cover_image: anime.cover_image });
+                        openDetails({
+                          anilist_id: anime.anilist_id,
+                          title: franchiseTitle,
+                          cover_image: anime.cover_image,
+                          seasons,
+                          franchiseTitle,
+                        });
                       }}
                       className="min-w-0 flex-1 cursor-pointer"
                       title="Details & Trailer öffnen"
                     >
-                      <p className="truncate text-sm font-medium hover:text-indigo-400 transition">{anime.title}</p>
+                      <p className="truncate text-sm font-medium hover:text-indigo-400 transition">{franchiseTitle}</p>
                       <p className="mt-0.5 flex items-center gap-1.5 truncate text-xs text-muted-foreground">
                         {score && (
                           <span className="inline-flex items-center gap-0.5 text-foreground/80">
@@ -233,7 +280,12 @@ export function CommandSearchProvider({ children }: { children: ReactNode }) {
                             {score}
                           </span>
                         )}
-                        {anime.episodes ? <span>· {anime.episodes} Folgen</span> : null}
+                        {seasonCount > 1 && (
+                          <span className="rounded-full bg-indigo-950/80 border border-indigo-400/30 px-1.5 py-0.2 text-[10px] font-semibold text-indigo-300">
+                            {seasonCount} Staffeln
+                          </span>
+                        )}
+                        {totalEpisodes ? <span>· {totalEpisodes} Folgen</span> : null}
                         {anime.genres.length > 0 && <span className="truncate">· {anime.genres.slice(0, 3).join(", ")}</span>}
                       </p>
                     </div>

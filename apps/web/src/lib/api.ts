@@ -80,6 +80,17 @@ export type NextAiring = {
   time_until_airing: number;
 };
 
+export type AnimeRelation = {
+  id: number;
+  relation_type: string;
+  title: string;
+  format?: string | null;
+  status?: string | null;
+  episodes?: number | null;
+  season_year?: number | null;
+  cover_image?: string | null;
+};
+
 export type AnimeDetails = {
   anilist_id: number;
   title: string;
@@ -106,6 +117,7 @@ export type AnimeDetails = {
   trailer?: AnimeTrailer | null;
   source?: string | null;
   next_airing?: NextAiring | null;
+  relations?: AnimeRelation[];
 };
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";

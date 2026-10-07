@@ -8,12 +8,13 @@ import { GridIcon, ListIcon, MinusIcon, PlusIcon, SearchIcon, TrashIcon } from "
 import { Button, EmptyState } from "@/components/ui";
 import { useWatchlist } from "@/components/watchlist-provider";
 import type { AnimeEntry } from "@/lib/api";
+import { groupAnimeByFranchise, GroupedAnime } from "@/lib/grouping";
 import { cn, EntryStatus, STATUS_META, STATUS_ORDER, WATCHLIST_STATUS_ORDER } from "@/lib/utils";
 
 type Filter = "all" | EntryStatus;
 
 export default function ListPage() {
-  const { entries, ready, loadError } = useWatchlist();
+  const { entries, ready, loadError, groupSeasons, toggleGroupSeasons } = useWatchlist();
   const { openSearch } = useCommandSearch();
   const [filter, setFilter] = useState<Filter>("all");
   const [viewMode, setViewMode] = useState<"list" | "grid">("list");
@@ -44,6 +45,11 @@ export default function ListPage() {
     return matchesFilter && matchesQuery;
   });
 
+  const displayEntries = useMemo(() => {
+    if (!groupSeasons) return visible;
+    return groupAnimeByFranchise(visible);
+  }, [groupSeasons, visible]);
+
   const tabs: { value: Filter; label: string }[] = [
     { value: "all", label: "Alle" },
     ...WATCHLIST_STATUS_ORDER.map((status) => ({ value: status, label: STATUS_META[status].label })),
@@ -61,7 +67,7 @@ export default function ListPage() {
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <label className="relative block sm:w-60">
             <span className="sr-only">Liste filtern</span>
             <SearchIcon width={15} height={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
@@ -72,6 +78,21 @@ export default function ListPage() {
               className="h-9 w-full rounded-full border border-border bg-card/60 pl-9 pr-3 text-xs outline-none transition-colors placeholder:text-muted-foreground focus:border-border-strong focus:bg-card"
             />
           </label>
+
+          <button
+            type="button"
+            onClick={toggleGroupSeasons}
+            title={groupSeasons ? "Staffeln einzeln anzeigen" : "Staffeln zusammenfassen"}
+            aria-label="Staffel-Gruppierung umschalten"
+            className={cn(
+              "inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium border transition active:scale-95",
+              groupSeasons
+                ? "bg-indigo-500/15 border-indigo-500/30 text-indigo-300"
+                : "bg-card border-border text-muted-foreground hover:text-foreground",
+            )}
+          >
+            <span>{groupSeasons ? "Staffeln gruppiert" : "Staffeln einzeln"}</span>
+          </button>
 
           <div className="flex items-center rounded-full border border-border bg-card/60 p-0.5" role="group" aria-label="Ansicht">
             <button
@@ -144,24 +165,41 @@ export default function ListPage() {
           <EmptyState icon={<SearchIcon />} title="Keine Treffer" description="Für diesen Filter gibt es keine Einträge." />
         ) : viewMode === "grid" ? (
           <div className="grid grid-cols-2 gap-x-4 gap-y-7 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
-            {visible.map((entry) => (
-              <AnimeCard
-                key={entry.id}
-                anime={{
-                  anilist_id: entry.anilist_id,
-                  title: entry.title,
-                  cover_image: entry.cover_image,
-                  score: entry.user_rating ? entry.user_rating * 10 : null,
-                  episodes: null,
-                  genres: [],
-                }}
-                className="animate-enter"
-              />
-            ))}
+            {displayEntries.map((item) => {
+              const isGroup: boolean = "isGroup" in item && Boolean(item.isGroup);
+              const seasonCount: number =
+                "seasonCount" in item && typeof item.seasonCount === "number" ? item.seasonCount : 1;
+              const franchiseTitle: string =
+                "franchiseTitle" in item && typeof item.franchiseTitle === "string"
+                  ? item.franchiseTitle
+                  : item.title;
+              const seasons =
+                "seasons" in item && Array.isArray(item.seasons) ? item.seasons : undefined;
+              const totalEpisodes: number | null =
+                "totalEpisodes" in item && typeof item.totalEpisodes === "number"
+                  ? item.totalEpisodes
+                  : null;
+
+              return (
+                <AnimeCard
+                  key={item.id}
+                  anime={{
+                    anilist_id: item.anilist_id,
+                    title: franchiseTitle,
+                    cover_image: item.cover_image,
+                    score: item.user_rating ? item.user_rating * 10 : null,
+                    episodes: totalEpisodes,
+                    genres: [],
+                    ...(isGroup ? { isGroup, seasonCount, franchiseTitle, totalEpisodes, seasons } : {}),
+                  }}
+                  className="animate-enter"
+                />
+              );
+            })}
           </div>
         ) : (
           <ul className="space-y-2">
-            {visible.map((entry) => (
+            {displayEntries.map((entry) => (
               <EntryRow key={entry.id} entry={entry} />
             ))}
           </ul>
@@ -171,27 +209,54 @@ export default function ListPage() {
   );
 }
 
-function EntryRow({ entry }: { entry: AnimeEntry }) {
+function EntryRow({ entry }: { entry: AnimeEntry | GroupedAnime<AnimeEntry> }) {
   const { update, remove } = useWatchlist();
   const { openDetails } = useAnimeDetail();
+  const seasonCount: number =
+    "seasonCount" in entry && typeof entry.seasonCount === "number" ? entry.seasonCount : 1;
+  const franchiseTitle: string =
+    "franchiseTitle" in entry && typeof entry.franchiseTitle === "string"
+      ? entry.franchiseTitle
+      : entry.title;
+  const seasons =
+    "seasons" in entry && Array.isArray(entry.seasons) ? entry.seasons : undefined;
 
   function handleOpen() {
     openDetails({
       anilist_id: entry.anilist_id,
-      title: entry.title,
+      title: franchiseTitle,
       cover_image: entry.cover_image,
+      seasons,
+      franchiseTitle,
     });
   }
 
   return (
     <li className="animate-enter group flex gap-4 rounded-2xl border border-border/80 bg-card/70 p-3 transition-all hover:border-border-strong hover:bg-card">
       <div className="cursor-pointer" onClick={handleOpen}>
-        <Poster src={entry.cover_image} alt={entry.title} sizes="56px" className="h-[84px] w-14 shrink-0 rounded-xl ring-1 ring-border transition hover:scale-105" />
+        <Poster
+          src={entry.cover_image}
+          alt={franchiseTitle}
+          sizes="56px"
+          className="h-[84px] w-14 shrink-0 rounded-xl ring-1 ring-border transition hover:scale-105"
+        />
       </div>
 
       <div className="flex min-w-0 flex-1 flex-col justify-between gap-3 sm:flex-row sm:items-center">
         <div className="min-w-0">
-          <p onClick={handleOpen} className="cursor-pointer truncate font-medium text-foreground hover:text-indigo-400 transition">{entry.title}</p>
+          <div className="flex items-center gap-2">
+            <p
+              onClick={handleOpen}
+              className="cursor-pointer truncate font-medium text-foreground hover:text-indigo-400 transition"
+            >
+              {franchiseTitle}
+            </p>
+            {seasonCount > 1 && (
+              <span className="shrink-0 rounded-full bg-indigo-950/80 border border-indigo-400/30 px-2 py-0.5 text-[10px] font-semibold text-indigo-200">
+                {seasonCount} Staffeln
+              </span>
+            )}
+          </div>
           <div className="mt-1.5">
             <StatusSelect value={entry.status} onChange={(status) => void update(entry, { status })} />
           </div>

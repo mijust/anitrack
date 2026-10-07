@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { createContext, ReactNode, useContext, useEffect, useState } from "react";
+import { createContext, ReactNode, useContext, useEffect, useMemo, useState } from "react";
 import { useEvaluation } from "@/components/evaluation-dialog";
 import {
   BanIcon,
@@ -16,12 +16,23 @@ import {
 } from "@/components/icons";
 import { useWatchlist } from "@/components/watchlist-provider";
 import { api, AnimeDetails } from "@/lib/api";
-import { cn, errorMessage, formatScore } from "@/lib/utils";
+import { extractSeasonOrder, getSeasonLabel, normalizeFranchiseTitle } from "@/lib/grouping";
+import { cn, errorMessage, formatScore, STATUS_META } from "@/lib/utils";
+
+export type SeasonItem = {
+  anilist_id: number;
+  title: string;
+  cover_image?: string | null;
+  episodes?: number | null;
+  score?: number | null;
+};
 
 export type DetailTarget = {
   anilist_id?: number;
   title?: string;
   cover_image?: string | null;
+  seasons?: SeasonItem[];
+  franchiseTitle?: string;
 };
 
 type AnimeDetailContextValue = {
@@ -93,6 +104,7 @@ export function AnimeDetailProvider({ children }: { children: ReactNode }) {
           loading={loading}
           error={error}
           onClose={closeDetails}
+          onSelectSeason={openDetails}
           onRetry={() => {
             if (target) openDetails(target);
           }}
@@ -108,6 +120,7 @@ function AnimeDetailModal({
   loading,
   error,
   onClose,
+  onSelectSeason,
   onRetry,
 }: {
   target: DetailTarget;
@@ -115,10 +128,11 @@ function AnimeDetailModal({
   loading: boolean;
   error: string | null;
   onClose: () => void;
+  onSelectSeason: (target: DetailTarget) => void;
   onRetry: () => void;
 }) {
   const { openEvaluation } = useEvaluation();
-  const { getEntry, addToWatchlist, requestRating, dismiss } = useWatchlist();
+  const { getEntry, addToWatchlist, requestRating, dismiss, addAllToWatchlist } = useWatchlist();
   const [expandedDesc, setExpandedDesc] = useState(false);
   const [showVideoTrailer, setShowVideoTrailer] = useState(false);
 
@@ -135,6 +149,78 @@ function AnimeDetailModal({
   const isDismissed = entry?.status === "dismissed";
   const displayTitle = details?.title || target.title || "Anime Details";
   const coverUrl = details?.cover_image || target.cover_image;
+
+  // Bestimme vollständige Liste der Staffeln (entweder aus dem übergebenen target oder aus Relationen)
+  const seasonsList = useMemo<SeasonItem[]>(() => {
+    if (target.seasons && target.seasons.length > 0) {
+      return target.seasons;
+    }
+    if (!details) return [];
+
+    const current: SeasonItem = {
+      anilist_id: details.anilist_id,
+      title: details.title,
+      cover_image: details.cover_image,
+      episodes: details.episodes,
+      score: details.score,
+    };
+
+    if (!details.relations || details.relations.length === 0) {
+      return [current];
+    }
+
+    const franchiseRelations = details.relations.filter(
+      (r) =>
+        ["SEQUEL", "PREQUEL", "PARENT", "SIDE_STORY", "ALTERNATIVE"].includes(r.relation_type) &&
+        (r.format === "TV" ||
+          r.format === "TV_SHORT" ||
+          r.format === "ONA" ||
+          r.format === "OVA" ||
+          r.format === "MOVIE" ||
+          !r.format),
+    );
+
+    if (franchiseRelations.length === 0) return [current];
+
+    const relatedItems: SeasonItem[] = franchiseRelations.map((r) => ({
+      anilist_id: r.id,
+      title: r.title,
+      cover_image: r.cover_image,
+      episodes: r.episodes,
+      score: null,
+    }));
+
+    const all = [current, ...relatedItems];
+    const seen = new Set<number>();
+    const deduped: SeasonItem[] = [];
+    for (const item of all) {
+      if (!seen.has(item.anilist_id)) {
+        seen.add(item.anilist_id);
+        deduped.push(item);
+      }
+    }
+
+    deduped.sort((a, b) => {
+      const orderA = extractSeasonOrder(a.title);
+      const orderB = extractSeasonOrder(b.title);
+      if (orderA.season !== orderB.season) return orderA.season - orderB.season;
+      if (orderA.part !== orderB.part) return orderA.part - orderB.part;
+      return a.anilist_id - b.anilist_id;
+    });
+
+    return deduped;
+  }, [target.seasons, details]);
+
+  function handleSelectSeason(season: SeasonItem) {
+    if (season.anilist_id === anilistId) return;
+    onSelectSeason({
+      anilist_id: season.anilist_id,
+      title: season.title,
+      cover_image: season.cover_image,
+      seasons: seasonsList,
+      franchiseTitle: target.franchiseTitle || normalizeFranchiseTitle(displayTitle),
+    });
+  }
 
   return (
     <div
@@ -321,9 +407,95 @@ function AnimeDetailModal({
                     <BanIcon width={13} height={13} />
                     <span>{isDismissed ? "Ausgeblendet" : "Kein Interesse"}</span>
                   </button>
+
+                  {seasonsList.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        void addAllToWatchlist(
+                          seasonsList.map((s) => ({
+                            anilist_id: s.anilist_id,
+                            title: s.title,
+                            cover_image: s.cover_image ?? null,
+                          })),
+                        );
+                      }}
+                      className="inline-flex items-center gap-1.5 rounded-full border border-indigo-500/30 bg-indigo-500/10 px-3.5 py-2 text-xs font-medium text-indigo-300 transition hover:bg-indigo-500/20 active:scale-95"
+                      title="Alle Staffeln der Serie zur Watchlist hinzufügen"
+                    >
+                      <BookmarkIcon width={13} height={13} />
+                      <span>Alle {seasonsList.length} Staffeln merken</span>
+                    </button>
+                  )}
                 </>
               )}
             </div>
+
+            {/* Staffeln & Fortsetzungen Switcher */}
+            {seasonsList.length > 1 && (
+              <section className="mt-4 rounded-2xl border border-border/80 bg-muted/20 p-3.5 space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <h2 className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    <SparklesIcon width={13} height={13} className="text-indigo-400" />
+                    Staffeln & Fortsetzungen ({seasonsList.length})
+                  </h2>
+                  <span className="text-[11px] text-muted-foreground/75">
+                    Klicke zum Wechseln
+                  </span>
+                </div>
+
+                <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-thin">
+                  {seasonsList.map((season, idx) => {
+                    const isCurrent = season.anilist_id === anilistId;
+                    const seasonEntry = getEntry(season.anilist_id);
+                    const label = getSeasonLabel(
+                      season.title,
+                      target.franchiseTitle || normalizeFranchiseTitle(displayTitle),
+                      idx,
+                    );
+
+                    return (
+                      <button
+                        key={season.anilist_id}
+                        type="button"
+                        onClick={() => handleSelectSeason(season)}
+                        className={cn(
+                          "group relative flex shrink-0 items-center gap-2 rounded-xl px-3 py-2 text-xs font-medium transition active:scale-95",
+                          isCurrent
+                            ? "bg-indigo-600 text-white shadow-md shadow-indigo-600/30 ring-1 ring-indigo-400/50"
+                            : "border border-border/80 bg-card/70 text-foreground/80 hover:border-indigo-500/40 hover:bg-card hover:text-foreground",
+                        )}
+                      >
+                        <span className="font-semibold">{label}</span>
+                        {season.episodes && (
+                          <span
+                            className={cn(
+                              "rounded-md px-1.5 py-0.5 text-[10px]",
+                              isCurrent ? "bg-white/20 text-white" : "bg-muted text-muted-foreground",
+                            )}
+                          >
+                            {season.episodes} Ep
+                          </span>
+                        )}
+                        {seasonEntry && (
+                          <span
+                            title={STATUS_META[seasonEntry.status]?.label}
+                            className={cn(
+                              "size-2 rounded-full",
+                              seasonEntry.status === "completed"
+                                ? "bg-emerald-400"
+                                : seasonEntry.status === "planned"
+                                  ? "bg-indigo-400"
+                                  : "bg-zinc-400",
+                            )}
+                          />
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </section>
+            )}
 
             {/* Haupt-Body */}
             <div className="space-y-6 py-5">

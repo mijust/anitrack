@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { AnimeCard, AnimeCardSkeleton, Poster } from "@/components/anime-card";
 import { useAnimeDetail } from "@/components/anime-detail-modal";
 import { SearchTrigger } from "@/components/command-search";
@@ -9,7 +9,8 @@ import { ChevronLeftIcon, ChevronRightIcon, PlusIcon, SparklesIcon } from "@/com
 import { EmptyState, Rail, SectionHeader } from "@/components/ui";
 import { useWatchlist } from "@/components/watchlist-provider";
 import { api, AnimeSearchResult } from "@/lib/api";
-import { currentSeason, errorMessage, isAbortError, parseSeasonKey, seasonKey, seasonLabel, shiftSeason, STATUS_META } from "@/lib/utils";
+import { groupAnimeByFranchise } from "@/lib/grouping";
+import { cn, currentSeason, errorMessage, isAbortError, parseSeasonKey, seasonKey, seasonLabel, shiftSeason, STATUS_META } from "@/lib/utils";
 
 type Loaded<T> = { key: string; data: T; error: string | null };
 
@@ -121,7 +122,7 @@ function ContinueWatching() {
 }
 
 function ForYou() {
-  const { entries, ready, isDismissed } = useWatchlist();
+  const { entries, ready, isDismissed, groupSeasons } = useWatchlist();
   const activeEntries = entries.filter((e) => e.status !== "dismissed");
   const key = `${activeEntries.length}-${entries.length}`;
   const [state, setState] = useState<Loaded<AnimeSearchResult[]> | null>(null);
@@ -138,6 +139,12 @@ function ForYou() {
     return () => controller.abort();
   }, [key, ready, activeEntries.length]);
 
+  const rawVisible = (state?.data ?? []).filter((anime) => !isDismissed(anime.anilist_id));
+  const visibleData = useMemo(
+    () => (groupSeasons ? groupAnimeByFranchise(rawVisible) : rawVisible),
+    [groupSeasons, rawVisible],
+  );
+
   if (ready && activeEntries.length === 0) {
     return (
       <section>
@@ -151,7 +158,6 @@ function ForYou() {
     );
   }
 
-  const visibleData = (state?.data ?? []).filter((anime) => !isDismissed(anime.anilist_id));
   const loading = !state || (state.key !== key && visibleData.length === 0);
   if (state?.error && visibleData.length === 0) return null;
   if (!loading && visibleData.length === 0 && activeEntries.length > 0) return null;
@@ -178,6 +184,7 @@ function useCurrentSeasonKey(): string | null {
 }
 
 function SeasonGrid() {
+  const { groupSeasons, toggleGroupSeasons } = useWatchlist();
   const nowKey = useCurrentSeasonKey();
   const [offset, setOffset] = useState(0);
   const selection = nowKey ? shiftSeason(parseSeasonKey(nowKey), offset) : null;
@@ -197,6 +204,11 @@ function SeasonGrid() {
   }, [key]);
 
   const loading = !state || state.key !== key;
+  const seasonalList = state?.data;
+  const displayData = useMemo(() => {
+    if (!seasonalList) return [];
+    return groupSeasons ? groupAnimeByFranchise(seasonalList) : seasonalList;
+  }, [groupSeasons, seasonalList]);
 
   return (
     <section>
@@ -204,27 +216,44 @@ function SeasonGrid() {
         title={offset === 0 ? "Diese Saison" : selection ? seasonLabel(selection) : "Saison"}
         description={offset === 0 && selection ? `Die beliebtesten Anime im ${seasonLabel(selection)}.` : "Die beliebtesten Anime dieser Saison."}
         action={
-          <div className="flex items-center gap-1 rounded-full border border-border p-1">
+          <div className="flex flex-wrap items-center gap-2">
             <button
               type="button"
-              onClick={() => setOffset((value) => value - 1)}
-              aria-label="Vorherige Saison"
-              className="grid size-7 place-items-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
+              onClick={toggleGroupSeasons}
+              title={groupSeasons ? "Staffeln einzeln anzeigen" : "Staffeln zusammenfassen"}
+              aria-label="Staffel-Gruppierung umschalten"
+              className={cn(
+                "inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium border transition active:scale-95",
+                groupSeasons
+                  ? "bg-indigo-500/15 border-indigo-500/30 text-indigo-300"
+                  : "bg-card border-border text-muted-foreground hover:text-foreground",
+              )}
             >
-              <ChevronLeftIcon width={16} height={16} />
+              <span>{groupSeasons ? "Staffeln gruppiert" : "Staffeln einzeln"}</span>
             </button>
-            <span className="min-w-28 text-center text-sm font-medium tabular-nums">
-              {selection ? seasonLabel(selection) : "…"}
-            </span>
-            <button
-              type="button"
-              onClick={() => setOffset((value) => value + 1)}
-              disabled={offset >= 1}
-              aria-label="Nächste Saison"
-              className="grid size-7 place-items-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-30"
-            >
-              <ChevronRightIcon width={16} height={16} />
-            </button>
+
+            <div className="flex items-center gap-1 rounded-full border border-border p-1">
+              <button
+                type="button"
+                onClick={() => setOffset((value) => value - 1)}
+                aria-label="Vorherige Saison"
+                className="grid size-7 place-items-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
+              >
+                <ChevronLeftIcon width={16} height={16} />
+              </button>
+              <span className="min-w-28 text-center text-sm font-medium tabular-nums">
+                {selection ? seasonLabel(selection) : "…"}
+              </span>
+              <button
+                type="button"
+                onClick={() => setOffset((value) => value + 1)}
+                disabled={offset >= 1}
+                aria-label="Nächste Saison"
+                className="grid size-7 place-items-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-30"
+              >
+                <ChevronRightIcon width={16} height={16} />
+              </button>
+            </div>
           </div>
         }
       />
@@ -235,7 +264,7 @@ function SeasonGrid() {
         <div className="grid grid-cols-2 gap-x-4 gap-y-7 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
           {loading
             ? Array.from({ length: 12 }, (_, index) => <AnimeCardSkeleton key={index} />)
-            : state.data.map((anime) => <AnimeCard key={anime.anilist_id} anime={anime} className="animate-enter" />)}
+            : displayData.map((anime) => <AnimeCard key={anime.anilist_id} anime={anime} className="animate-enter" />)}
         </div>
       )}
     </section>

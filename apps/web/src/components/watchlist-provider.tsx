@@ -24,6 +24,10 @@ type WatchlistContextValue = {
   update: (entry: AnimeEntry, patch: EntryPatch) => Promise<void>;
   remove: (entry: AnimeEntry) => Promise<void>;
   requestRating: (anime: Addable) => void;
+  addAllToWatchlist: (animes: Addable[]) => Promise<void>;
+  groupSeasons: boolean;
+  setGroupSeasons: (value: boolean) => void;
+  toggleGroupSeasons: () => void;
 };
 
 const WatchlistContext = createContext<WatchlistContextValue | null>(null);
@@ -39,6 +43,28 @@ export function WatchlistProvider({ children }: { children: ReactNode }) {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [pending, setPending] = useState<Set<number>>(() => new Set());
   const [ratingTarget, setRatingTarget] = useState<Addable & { initialRating?: number | null } | null>(null);
+  const [groupSeasons, setGroupSeasonsState] = useState<boolean>(() => {
+    if (typeof window === "undefined") return true;
+    const stored = localStorage.getItem("anitrack_group_seasons");
+    return stored === null ? true : stored === "true";
+  });
+
+  const setGroupSeasons = useCallback((val: boolean) => {
+    setGroupSeasonsState(val);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("anitrack_group_seasons", String(val));
+    }
+  }, []);
+
+  const toggleGroupSeasons = useCallback(() => {
+    setGroupSeasonsState((current) => {
+      const next = !current;
+      if (typeof window !== "undefined") {
+        localStorage.setItem("anitrack_group_seasons", String(next));
+      }
+      return next;
+    });
+  }, []);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -201,6 +227,30 @@ export function WatchlistProvider({ children }: { children: ReactNode }) {
     [markWatched],
   );
 
+  const addAllToWatchlist = useCallback(
+    async (animes: Addable[]) => {
+      const needed = animes.filter((a) => !entryMap.has(a.anilist_id));
+      if (needed.length === 0) {
+        toast("Alle Staffeln sind bereits auf deiner Liste.");
+        return;
+      }
+      let addedCount = 0;
+      for (const item of needed) {
+        try {
+          const created = await api.createEntry(item, { status: "planned" });
+          setEntries((current) => [created, ...current]);
+          addedCount++;
+        } catch {
+          // continue with others
+        }
+      }
+      toast(`${addedCount} Staffel${addedCount === 1 ? "" : "n"} zur Watchlist hinzugefügt`, {
+        tone: "success",
+      });
+    },
+    [entryMap, toast],
+  );
+
   const value = useMemo<WatchlistContextValue>(
     () => ({
       entries,
@@ -223,6 +273,10 @@ export function WatchlistProvider({ children }: { children: ReactNode }) {
       update,
       remove,
       requestRating,
+      addAllToWatchlist,
+      groupSeasons,
+      setGroupSeasons,
+      toggleGroupSeasons,
     }),
     [
       entries,
@@ -236,6 +290,10 @@ export function WatchlistProvider({ children }: { children: ReactNode }) {
       update,
       remove,
       requestRating,
+      addAllToWatchlist,
+      groupSeasons,
+      setGroupSeasons,
+      toggleGroupSeasons,
     ],
   );
 
