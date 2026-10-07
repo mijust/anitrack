@@ -34,7 +34,7 @@ export function Poster({
           alt={alt}
           fill
           sizes={sizes}
-          className="object-cover"
+          className="object-cover transition-transform duration-300 will-change-transform group-hover:scale-105"
           onError={() => setFailed(true)}
         />
       ) : (
@@ -84,34 +84,37 @@ export function AnimeCard({
         {/* Sanfter Gradient auf Hover */}
         <div className="pointer-events-none absolute inset-0 rounded-2xl bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100 group-focus-within:opacity-100 [@media(hover:none)]:opacity-100" />
 
-        {/* Score Badge links oben */}
-        {score && (
-          <span className="absolute left-2.5 top-2.5 inline-flex items-center gap-1 rounded-full bg-black/60 px-2 py-0.5 text-[11px] font-medium text-white shadow-sm backdrop-blur-md">
-            <StarIcon width={11} height={11} className="fill-current text-amber-400" />
-            {score}
-          </span>
-        )}
+        {/* Top Badges: Score & Status */}
+        <div className="pointer-events-none absolute inset-x-2 top-2 z-10 flex items-center justify-between gap-1">
+          {score ? (
+            <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-black/65 px-2 py-0.5 text-[11px] font-medium text-white shadow-sm backdrop-blur-md">
+              <StarIcon width={11} height={11} className="fill-current text-amber-400" />
+              {score}
+            </span>
+          ) : (
+            <span />
+          )}
 
-        {/* Status Badge rechts oben (falls schon auf der Liste) */}
-        {entry && (
-          <span
-            className={cn(
-              "absolute right-2.5 top-2.5 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold tracking-wide backdrop-blur-md shadow-sm",
-              entry.status === "completed" && "bg-emerald-500/80 text-white",
-              entry.status === "planned" && "bg-violet-500/80 text-white",
-              entry.status === "watching" && "bg-sky-500/80 text-white",
-              entry.status === "paused" && "bg-amber-500/80 text-white",
-              entry.status === "dropped" && "bg-zinc-600/80 text-white",
-              entry.status === "dismissed" && "bg-rose-600/80 text-white",
-            )}
-          >
-            {entry.status === "completed" && entry.user_rating ? (
-              <>★ {entry.user_rating}/10</>
-            ) : (
-              STATUS_META[entry.status].label
-            )}
-          </span>
-        )}
+          {entry && (
+            <span
+              className={cn(
+                "inline-flex max-w-[55%] items-center gap-1 truncate rounded-full px-2 py-0.5 text-[10px] font-semibold tracking-wide shadow-sm backdrop-blur-md",
+                entry.status === "completed" && "bg-emerald-500/90 text-white",
+                entry.status === "planned" && "bg-violet-500/90 text-white",
+                entry.status === "watching" && "bg-sky-500/90 text-white",
+                entry.status === "paused" && "bg-amber-500/90 text-white",
+                entry.status === "dropped" && "bg-zinc-600/90 text-white",
+                entry.status === "dismissed" && "bg-rose-600/90 text-white",
+              )}
+            >
+              <span className="truncate">
+                {entry.status === "completed" && entry.user_rating
+                  ? `★ ${entry.user_rating}/10`
+                  : STATUS_META[entry.status].label}
+              </span>
+            </span>
+          )}
+        </div>
 
         {/* Ladeindikator */}
         {busy && (
@@ -122,12 +125,12 @@ export function AnimeCard({
 
         {/* Aktionsleiste unten am Poster: Watchlist, Watched (Gesehen), Kein Interesse */}
         {!busy && (
-          <div className="absolute inset-x-2 bottom-2 z-10 flex items-center justify-center gap-1 rounded-full border border-white/15 bg-black/80 p-1 shadow-lg backdrop-blur-md transition-all duration-200 opacity-0 translate-y-1 group-hover:translate-y-0 group-hover:opacity-100 group-focus-within:translate-y-0 group-focus-within:opacity-100 [@media(hover:none)]:translate-y-0 [@media(hover:none)]:opacity-100">
+          <div className="absolute inset-x-2 bottom-2 z-10 grid grid-cols-3 gap-1 rounded-2xl border border-white/15 bg-black/85 p-1 shadow-lg backdrop-blur-md transition-all duration-200 opacity-0 translate-y-1 group-hover:translate-y-0 group-hover:opacity-100 group-focus-within:translate-y-0 group-focus-within:opacity-100 [@media(hover:none)]:translate-y-0 [@media(hover:none)]:opacity-100">
             {isDismissed ? (
               <button
                 type="button"
                 onClick={() => void remove(entry)}
-                className="inline-flex h-7 items-center gap-1.5 rounded-full bg-white/20 px-2.5 text-[11px] font-medium text-white hover:bg-white/30"
+                className="col-span-3 flex h-8 items-center justify-center gap-1.5 rounded-xl bg-white/20 px-2.5 text-[11px] font-medium text-white transition hover:bg-white/30"
               >
                 Wiederherstellen
               </button>
@@ -137,38 +140,40 @@ export function AnimeCard({
                 <button
                   type="button"
                   onClick={() => void addToWatchlist(anime)}
-                  title="Zur Watchlist hinzufügen"
+                  title={entry?.status === "planned" ? "Auf der Watchlist" : "Zur Watchlist hinzufügen"}
                   aria-label={`${anime.title} zur Watchlist`}
                   className={cn(
-                    "inline-flex h-7 items-center justify-center gap-1 rounded-full px-2 text-[11px] font-medium transition active:scale-95",
+                    "flex h-8 items-center justify-center rounded-xl transition active:scale-90",
                     entry?.status === "planned"
-                      ? "bg-violet-500 text-white"
-                      : "bg-white/15 text-white hover:bg-white/25",
+                      ? "bg-violet-500 text-white shadow-sm"
+                      : "bg-white/10 text-white/90 hover:bg-violet-500/30 hover:text-white",
                   )}
                 >
                   {entry?.status === "planned" ? (
-                    <CheckIcon width={12} height={12} />
+                    <CheckIcon width={14} height={14} />
                   ) : (
-                    <BookmarkIcon width={12} height={12} />
+                    <BookmarkIcon width={14} height={14} />
                   )}
-                  <span className="hidden xl:inline">Watchlist</span>
                 </button>
 
                 {/* 2. Watched (Gesehen) mit Sterne-Abfrage */}
                 <button
                   type="button"
                   onClick={() => requestRating(anime)}
-                  title="Als gesehen markieren (Sterne bewerten)"
+                  title={
+                    entry?.status === "completed"
+                      ? `Gesehen (${entry.user_rating ? `${entry.user_rating}/10` : "bewertet"})`
+                      : "Als gesehen markieren (bewerten)"
+                  }
                   aria-label={`${anime.title} als gesehen markieren`}
                   className={cn(
-                    "inline-flex h-7 items-center justify-center gap-1 rounded-full px-2 text-[11px] font-medium transition active:scale-95",
+                    "flex h-8 items-center justify-center rounded-xl transition active:scale-90",
                     entry?.status === "completed"
-                      ? "bg-emerald-500 text-white"
-                      : "bg-white/15 text-white hover:bg-white/25",
+                      ? "bg-emerald-500 text-white shadow-sm"
+                      : "bg-white/10 text-white/90 hover:bg-emerald-500/30 hover:text-white",
                   )}
                 >
-                  <EyeIcon width={13} height={13} />
-                  <span className="hidden xl:inline">Gesehen</span>
+                  <EyeIcon width={15} height={15} />
                 </button>
 
                 {/* 3. Kein Interesse */}
@@ -177,9 +182,9 @@ export function AnimeCard({
                   onClick={() => void dismiss(anime)}
                   title="Kein Interesse (nicht mehr vorschlagen)"
                   aria-label={`${anime.title}: Kein Interesse`}
-                  className="grid size-7 place-items-center rounded-full bg-white/15 text-white/80 transition hover:bg-rose-500 hover:text-white active:scale-95"
+                  className="flex h-8 items-center justify-center rounded-xl bg-white/10 text-white/70 transition hover:bg-rose-500/30 hover:text-rose-200 active:scale-90"
                 >
-                  <BanIcon width={13} height={13} />
+                  <BanIcon width={14} height={14} />
                 </button>
               </>
             )}
