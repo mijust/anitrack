@@ -2,6 +2,9 @@
 
 Monorepo für die Anime-Tracker-WebApp. Die aktuelle Umsetzung enthält Authentifizierung, AniList-Suche, saisonale Übersichten, Anime Ask, personalisierte Recommendations und eine persistente Watchlist mit PostgreSQL.
 
+> 📖 **Schritt-für-Schritt Startup & Proxmox-Deployment Guide**: Siehe [startup.md](startup.md).
+
+
 ### Voraussetzungen
 
 - Node.js 20 oder neuer
