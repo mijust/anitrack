@@ -11,7 +11,7 @@ export type AnimeEntry = {
   title: string;
   cover_image: string | null;
   user_rating: number | null;
-  status: "watching" | "completed" | "planned" | "paused" | "dropped";
+  status: "watching" | "completed" | "planned" | "paused" | "dropped" | "dismissed";
   episodes_watched: number;
   notes: string | null;
   created_at: string;

@@ -11,10 +11,18 @@ import {
   useRef,
   useState,
 } from "react";
-import { CheckIcon, PlusIcon, SearchIcon, SpinnerIcon, StarIcon } from "@/components/icons";
+import {
+  BanIcon,
+  BookmarkIcon,
+  CheckIcon,
+  EyeIcon,
+  SearchIcon,
+  SpinnerIcon,
+  StarIcon,
+} from "@/components/icons";
 import { useWatchlist } from "@/components/watchlist-provider";
 import { api, AnimeSearchResult } from "@/lib/api";
-import { cn, errorMessage, formatScore, isAbortError } from "@/lib/utils";
+import { cn, errorMessage, formatScore, isAbortError, STATUS_META } from "@/lib/utils";
 
 type SearchContextValue = { openSearch: (query?: string) => void };
 const SearchContext = createContext<SearchContextValue | null>(null);
@@ -34,7 +42,7 @@ export function CommandSearchProvider({ children }: { children: ReactNode }) {
   const [active, setActive] = useState(0);
   const dialogRef = useRef<HTMLDialogElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  const { isInList, isPending, add } = useWatchlist();
+  const { getEntry, isPending, addToWatchlist, requestRating, dismiss, remove } = useWatchlist();
 
   const trimmed = query.trim();
   const searching = trimmed.length >= 2 && state.query !== trimmed;
@@ -108,7 +116,7 @@ export function CommandSearchProvider({ children }: { children: ReactNode }) {
     } else if (event.key === "Enter") {
       event.preventDefault();
       const anime = results[active];
-      if (anime && !isInList(anime.anilist_id)) void add(anime);
+      if (anime && !getEntry(anime.anilist_id)) void addToWatchlist(anime);
     }
   }
 
@@ -175,8 +183,9 @@ export function CommandSearchProvider({ children }: { children: ReactNode }) {
           {results.length > 0 && (
             <ul id="search-results" role="listbox" className={cn("space-y-0.5", searching && "opacity-60")}>
               {results.map((anime, index) => {
-                const listed = isInList(anime.anilist_id);
+                const entry = getEntry(anime.anilist_id);
                 const busy = isPending(anime.anilist_id);
+                const isDismissed = entry?.status === "dismissed";
                 const score = formatScore(anime.score);
                 return (
                   <li
@@ -186,11 +195,12 @@ export function CommandSearchProvider({ children }: { children: ReactNode }) {
                     aria-selected={index === active}
                     onMouseMove={() => setActive(index)}
                     className={cn(
-                      "flex items-center gap-3 rounded-xl p-2 transition-colors",
+                      "flex items-center gap-3 rounded-2xl p-2.5 transition-colors",
                       index === active && "bg-muted",
+                      isDismissed && "opacity-60",
                     )}
                   >
-                    <div className="relative h-16 w-11 shrink-0 overflow-hidden rounded-md bg-muted">
+                    <div className="relative h-16 w-11 shrink-0 overflow-hidden rounded-lg bg-muted ring-1 ring-border">
                       {anime.cover_image && (
                         <Image src={anime.cover_image} alt="" fill sizes="44px" className="object-cover" />
                       )}
@@ -208,26 +218,72 @@ export function CommandSearchProvider({ children }: { children: ReactNode }) {
                         {anime.genres.length > 0 && <span className="truncate">· {anime.genres.slice(0, 3).join(", ")}</span>}
                       </p>
                     </div>
-                    <button
-                      type="button"
-                      disabled={listed || busy}
-                      onClick={() => void add(anime)}
-                      className={cn(
-                        "inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full px-3 text-xs font-medium transition-colors",
-                        listed
-                          ? "bg-success/10 text-success"
-                          : "bg-foreground text-background hover:opacity-90 disabled:opacity-60",
-                      )}
-                    >
+
+                    <div className="flex shrink-0 items-center gap-1.5">
                       {busy ? (
-                        <SpinnerIcon width={14} height={14} />
-                      ) : listed ? (
-                        <CheckIcon width={14} height={14} />
+                        <div className="grid size-8 place-items-center">
+                          <SpinnerIcon width={16} height={16} className="text-muted-foreground" />
+                        </div>
+                      ) : entry ? (
+                        <div className="flex items-center gap-1.5">
+                          <span
+                            className={cn(
+                              "inline-flex h-7 items-center gap-1 rounded-full px-2.5 text-xs font-medium",
+                              entry.status === "completed" && "bg-emerald-500/15 text-emerald-400 border border-emerald-500/20",
+                              entry.status === "planned" && "bg-violet-500/15 text-violet-400 border border-violet-500/20",
+                              entry.status === "watching" && "bg-sky-500/15 text-sky-400 border border-sky-500/20",
+                              entry.status === "paused" && "bg-amber-500/15 text-amber-400 border border-amber-500/20",
+                              entry.status === "dropped" && "bg-zinc-500/15 text-zinc-400 border border-zinc-500/20",
+                              entry.status === "dismissed" && "bg-rose-500/15 text-rose-400 border border-rose-500/20",
+                            )}
+                          >
+                            <CheckIcon width={12} height={12} />
+                            {entry.status === "completed" && entry.user_rating
+                              ? `Gesehen (${entry.user_rating}/10)`
+                              : STATUS_META[entry.status].label}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => void remove(entry)}
+                            title="Aus Liste entfernen"
+                            aria-label={`${anime.title} entfernen`}
+                            className="grid size-7 place-items-center rounded-full text-muted-foreground hover:bg-danger/10 hover:text-danger"
+                          >
+                            <BanIcon width={13} height={13} />
+                          </button>
+                        </div>
                       ) : (
-                        <PlusIcon width={14} height={14} />
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => void addToWatchlist(anime)}
+                            title="Zur Watchlist hinzufügen"
+                            className="inline-flex h-8 items-center gap-1.5 rounded-full border border-border bg-card px-2.5 text-xs font-medium text-foreground transition hover:border-border-strong hover:bg-muted active:scale-95"
+                          >
+                            <BookmarkIcon width={12} height={12} />
+                            <span>Watchlist</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => requestRating(anime)}
+                            title="Als gesehen markieren (Sterne bewerten)"
+                            className="inline-flex h-8 items-center gap-1.5 rounded-full bg-foreground px-2.5 text-xs font-medium text-background transition hover:opacity-90 active:scale-95"
+                          >
+                            <EyeIcon width={13} height={13} />
+                            <span>Gesehen</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => void dismiss(anime)}
+                            title="Kein Interesse (nicht mehr vorschlagen)"
+                            aria-label={`${anime.title}: Kein Interesse`}
+                            className="grid size-8 place-items-center rounded-full text-muted-foreground transition hover:bg-rose-500/10 hover:text-rose-500 active:scale-95"
+                          >
+                            <BanIcon width={14} height={14} />
+                          </button>
+                        </>
                       )}
-                      {listed ? "In Liste" : "Merken"}
-                    </button>
+                    </div>
                   </li>
                 );
               })}

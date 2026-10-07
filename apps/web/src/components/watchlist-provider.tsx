@@ -1,22 +1,29 @@
 "use client";
 
 import { createContext, ReactNode, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { RatingDialog } from "@/components/rating-dialog";
 import { useToast } from "@/components/toast";
 import { api, AnimeEntry, AnimeSearchResult } from "@/lib/api";
 import { errorMessage, isAbortError } from "@/lib/utils";
 
 type EntryPatch = Partial<Pick<AnimeEntry, "status" | "user_rating" | "episodes_watched" | "notes">>;
-type Addable = Pick<AnimeSearchResult, "anilist_id" | "title" | "cover_image">;
+export type Addable = Pick<AnimeSearchResult, "anilist_id" | "title" | "cover_image">;
 
 type WatchlistContextValue = {
   entries: AnimeEntry[];
   ready: boolean;
   loadError: string | null;
+  getEntry: (anilistId: number) => AnimeEntry | undefined;
   isInList: (anilistId: number) => boolean;
+  isDismissed: (anilistId: number) => boolean;
   isPending: (anilistId: number) => boolean;
   add: (anime: Addable) => Promise<void>;
+  addToWatchlist: (anime: Addable) => Promise<void>;
+  markWatched: (anime: Addable, rating?: number | null) => Promise<void>;
+  dismiss: (anime: Addable) => Promise<void>;
   update: (entry: AnimeEntry, patch: EntryPatch) => Promise<void>;
   remove: (entry: AnimeEntry) => Promise<void>;
+  requestRating: (anime: Addable) => void;
 };
 
 const WatchlistContext = createContext<WatchlistContextValue | null>(null);
@@ -31,6 +38,7 @@ export function WatchlistProvider({ children }: { children: ReactNode }) {
   const [ready, setReady] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [pending, setPending] = useState<Set<number>>(() => new Set());
+  const [ratingTarget, setRatingTarget] = useState<Addable & { initialRating?: number | null } | null>(null);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -48,7 +56,7 @@ export function WatchlistProvider({ children }: { children: ReactNode }) {
     return () => controller.abort();
   }, []);
 
-  const listedIds = useMemo(() => new Set(entries.map((entry) => entry.anilist_id)), [entries]);
+  const entryMap = useMemo(() => new Map(entries.map((entry) => [entry.anilist_id, entry])), [entries]);
 
   const setPendingFlag = useCallback((id: number, on: boolean) => {
     setPending((current) => {
@@ -58,23 +66,6 @@ export function WatchlistProvider({ children }: { children: ReactNode }) {
       return next;
     });
   }, []);
-
-  const add = useCallback(
-    async (anime: Addable) => {
-      if (listedIds.has(anime.anilist_id)) return;
-      setPendingFlag(anime.anilist_id, true);
-      try {
-        const created = await api.createEntry(anime);
-        setEntries((current) => [created, ...current]);
-        toast(`„${anime.title}“ gemerkt`, { tone: "success" });
-      } catch (error) {
-        toast(errorMessage(error, "Konnte nicht gespeichert werden."), { tone: "error" });
-      } finally {
-        setPendingFlag(anime.anilist_id, false);
-      }
-    },
-    [listedIds, setPendingFlag, toast],
-  );
 
   const update = useCallback(
     async (entry: AnimeEntry, patch: EntryPatch) => {
@@ -120,21 +111,144 @@ export function WatchlistProvider({ children }: { children: ReactNode }) {
     [toast],
   );
 
+  const addWithStatus = useCallback(
+    async (
+      anime: Addable,
+      status: AnimeEntry["status"],
+      rating?: number | null,
+      successMessage?: string,
+      withUndo?: boolean,
+    ) => {
+      const existing = entryMap.get(anime.anilist_id);
+      setPendingFlag(anime.anilist_id, true);
+      try {
+        if (existing) {
+          const patch: EntryPatch = { status };
+          if (rating !== undefined) patch.user_rating = rating;
+          await update(existing, patch);
+        } else {
+          const created = await api.createEntry(anime, {
+            status,
+            user_rating: rating ?? undefined,
+          });
+          setEntries((current) => [created, ...current]);
+        }
+
+        if (successMessage) {
+          toast(successMessage, {
+            tone: "success",
+            action: withUndo
+              ? {
+                  label: "Rückgängig",
+                  onClick: () => {
+                    const toDelete = entryMap.get(anime.anilist_id);
+                    if (toDelete) void remove(toDelete);
+                  },
+                }
+              : undefined,
+          });
+        }
+      } catch (error) {
+        toast(errorMessage(error, "Konnte nicht gespeichert werden."), { tone: "error" });
+      } finally {
+        setPendingFlag(anime.anilist_id, false);
+      }
+    },
+    [entryMap, setPendingFlag, update, remove, toast],
+  );
+
+  const addToWatchlist = useCallback(
+    async (anime: Addable) => {
+      await addWithStatus(anime, "planned", undefined, `„${anime.title}“ zur Watchlist hinzugefügt`);
+    },
+    [addWithStatus],
+  );
+
+  const markWatched = useCallback(
+    async (anime: Addable, rating?: number | null) => {
+      const ratingText = rating !== null && rating !== undefined ? ` (${rating}/10 Sterne)` : "";
+      await addWithStatus(anime, "completed", rating, `„${anime.title}“ als gesehen markiert${ratingText}`);
+    },
+    [addWithStatus],
+  );
+
+  const dismiss = useCallback(
+    async (anime: Addable) => {
+      await addWithStatus(
+        anime,
+        "dismissed",
+        null,
+        `„${anime.title}“ wird nicht mehr vorgeschlagen`,
+        true,
+      );
+    },
+    [addWithStatus],
+  );
+
+  const requestRating = useCallback(
+    (anime: Addable) => {
+      const existing = entryMap.get(anime.anilist_id);
+      setRatingTarget({ ...anime, initialRating: existing?.user_rating });
+    },
+    [entryMap],
+  );
+
+  const handleRatingSave = useCallback(
+    (target: Addable, rating: number | null) => {
+      setRatingTarget(null);
+      void markWatched(target, rating);
+    },
+    [markWatched],
+  );
+
   const value = useMemo<WatchlistContextValue>(
     () => ({
       entries,
       ready,
       loadError,
-      isInList: (id) => listedIds.has(id),
+      getEntry: (id) => entryMap.get(id),
+      isInList: (id) => {
+        const item = entryMap.get(id);
+        return Boolean(item && item.status !== "dismissed");
+      },
+      isDismissed: (id) => {
+        const item = entryMap.get(id);
+        return Boolean(item && item.status === "dismissed");
+      },
       isPending: (id) => pending.has(id),
-      add,
+      add: addToWatchlist,
+      addToWatchlist,
+      markWatched,
+      dismiss,
       update,
       remove,
+      requestRating,
     }),
-    [entries, ready, loadError, listedIds, pending, add, update, remove],
+    [
+      entries,
+      ready,
+      loadError,
+      entryMap,
+      pending,
+      addToWatchlist,
+      markWatched,
+      dismiss,
+      update,
+      remove,
+      requestRating,
+    ],
   );
 
-  return <WatchlistContext.Provider value={value}>{children}</WatchlistContext.Provider>;
+  return (
+    <WatchlistContext.Provider value={value}>
+      {children}
+      <RatingDialog
+        target={ratingTarget}
+        onSave={handleRatingSave}
+        onClose={() => setRatingTarget(null)}
+      />
+    </WatchlistContext.Provider>
+  );
 }
 
 export function useWatchlist() {

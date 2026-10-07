@@ -77,7 +77,7 @@ async def anime_ask(
     if not current_settings.openrouter_api_key:
         raise HTTPException(status_code=503, detail="OpenRouter ist nicht konfiguriert (OPENROUTER_API_KEY fehlt in .env)")
 
-    entries = list((await db.scalars(select(AnimeEntry).where(AnimeEntry.user_id == user.id))).all())
+    entries = list((await db.scalars(select(AnimeEntry).where(AnimeEntry.user_id == user.id, AnimeEntry.status != "dismissed"))).all())
     profile = ", ".join(f"{entry.title} ({entry.user_rating or '-'} / 10)" for entry in entries[:20]) or "Keine gespeicherten Anime"
     if payload.mode == "evaluate":
         system = "Bewerte, ob der angegebene Anime zum Nutzer passt. Antworte als JSON mit answer und score (1-10)."

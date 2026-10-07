@@ -24,4 +24,6 @@ async def recommendations(
     user: User = Depends(get_current_user),
 ) -> List[AnimeSearchResult]:
     entries = list((await db.scalars(select(AnimeEntry).where(AnimeEntry.user_id == user.id))).all())
-    return await service.get_recommendations([entry.anilist_id for entry in entries], limit)
+    source_ids = [entry.anilist_id for entry in entries if entry.status != "dismissed"]
+    all_excluded = {entry.anilist_id for entry in entries}
+    return await service.get_recommendations(source_ids, limit, excluded_ids=all_excluded)

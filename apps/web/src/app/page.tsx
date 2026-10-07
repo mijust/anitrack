@@ -103,12 +103,13 @@ function ContinueWatching() {
 }
 
 function ForYou() {
-  const { entries, ready } = useWatchlist();
-  const key = String(entries.length);
+  const { entries, ready, isDismissed } = useWatchlist();
+  const activeEntries = entries.filter((e) => e.status !== "dismissed");
+  const key = `${activeEntries.length}-${entries.length}`;
   const [state, setState] = useState<Loaded<AnimeSearchResult[]> | null>(null);
 
   useEffect(() => {
-    if (!ready || entries.length === 0) return;
+    if (!ready || activeEntries.length === 0) return;
     const controller = new AbortController();
     api
       .recommendations(12, controller.signal)
@@ -117,9 +118,9 @@ function ForYou() {
         if (!isAbortError(error)) setState({ key, data: [], error: errorMessage(error, "Empfehlungen nicht verfügbar.") });
       });
     return () => controller.abort();
-  }, [key, ready, entries.length]);
+  }, [key, ready, activeEntries.length]);
 
-  if (ready && entries.length === 0) {
+  if (ready && activeEntries.length === 0) {
     return (
       <section>
         <SectionHeader title="Für dich" />
@@ -132,8 +133,10 @@ function ForYou() {
     );
   }
 
-  const loading = !state || (state.key !== key && state.data.length === 0);
-  if (state?.error && state.data.length === 0) return null;
+  const visibleData = (state?.data ?? []).filter((anime) => !isDismissed(anime.anilist_id));
+  const loading = !state || (state.key !== key && visibleData.length === 0);
+  if (state?.error && visibleData.length === 0) return null;
+  if (!loading && visibleData.length === 0 && activeEntries.length > 0) return null;
 
   return (
     <section>
@@ -141,7 +144,7 @@ function ForYou() {
       <Rail label="Empfehlungen">
         {loading
           ? Array.from({ length: 7 }, (_, index) => <AnimeCardSkeleton key={index} className="w-36 shrink-0 sm:w-44" />)
-          : state.data.map((anime) => (
+          : visibleData.map((anime) => (
               <AnimeCard key={anime.anilist_id} anime={anime} className="w-36 shrink-0 snap-start sm:w-44" />
             ))}
       </Rail>

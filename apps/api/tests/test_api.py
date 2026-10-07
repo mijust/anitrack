@@ -51,6 +51,18 @@ async def test_watchlist_flow() -> None:
             )
             assert update.status_code == 200
             assert update.json()["status"] == "completed"
+
+            # Test dismissed entry
+            dismiss = await client.post(
+                "/api/anime-entries",
+                json={"anilist_id": 999, "title": "Not Interested", "status": "dismissed"},
+            )
+            assert dismiss.status_code == 201
+            assert dismiss.json()["status"] == "dismissed"
+
+            dismissed_list = await client.get("/api/anime-entries?status=dismissed")
+            assert dismissed_list.status_code == 200
+            assert len(dismissed_list.json()) == 1
     finally:
         app.dependency_overrides.clear()
         await engine.dispose()

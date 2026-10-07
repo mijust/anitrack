@@ -7,7 +7,7 @@ import { ListIcon, MinusIcon, PlusIcon, SearchIcon, TrashIcon } from "@/componen
 import { Button, EmptyState } from "@/components/ui";
 import { useWatchlist } from "@/components/watchlist-provider";
 import type { AnimeEntry } from "@/lib/api";
-import { cn, EntryStatus, STATUS_META, STATUS_ORDER } from "@/lib/utils";
+import { cn, EntryStatus, STATUS_META, STATUS_ORDER, WATCHLIST_STATUS_ORDER } from "@/lib/utils";
 
 type Filter = "all" | EntryStatus;
 
@@ -18,20 +18,34 @@ export default function ListPage() {
   const [query, setQuery] = useState("");
 
   const counts = useMemo(() => {
-    const result: Record<Filter, number> = { all: entries.length, watching: 0, planned: 0, paused: 0, completed: 0, dropped: 0 };
-    for (const entry of entries) result[entry.status] += 1;
+    const activeCount = entries.filter((e) => e.status !== "dismissed").length;
+    const result: Record<Filter, number> = {
+      all: activeCount,
+      watching: 0,
+      planned: 0,
+      paused: 0,
+      completed: 0,
+      dropped: 0,
+      dismissed: 0,
+    };
+    for (const entry of entries) {
+      if (entry.status in result) {
+        result[entry.status] += 1;
+      }
+    }
     return result;
   }, [entries]);
 
-  const visible = entries.filter(
-    (entry) =>
-      (filter === "all" || entry.status === filter) &&
-      entry.title.toLowerCase().includes(query.trim().toLowerCase()),
-  );
+  const visible = entries.filter((entry) => {
+    const matchesFilter = filter === "all" ? entry.status !== "dismissed" : entry.status === filter;
+    const matchesQuery = entry.title.toLowerCase().includes(query.trim().toLowerCase());
+    return matchesFilter && matchesQuery;
+  });
 
   const tabs: { value: Filter; label: string }[] = [
     { value: "all", label: "Alle" },
-    ...STATUS_ORDER.map((status) => ({ value: status, label: STATUS_META[status].label })),
+    ...WATCHLIST_STATUS_ORDER.map((status) => ({ value: status, label: STATUS_META[status].label })),
+    { value: "dismissed", label: STATUS_META.dismissed.label },
   ];
 
   return (
@@ -40,7 +54,8 @@ export default function ListPage() {
         <div>
           <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Meine Liste</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            {entries.length} {entries.length === 1 ? "Anime" : "Anime"} gemerkt
+            {counts.all} aktive{counts.all === 1 ? "r" : ""} Anime gemerkt
+            {counts.dismissed > 0 ? ` · ${counts.dismissed} ausgeblendet` : ""}
           </p>
         </div>
         <label className="relative block sm:w-64">
@@ -122,21 +137,43 @@ function EntryRow({ entry }: { entry: AnimeEntry }) {
           </div>
         </div>
 
-        <div className="flex items-center gap-4 sm:gap-6">
-          <EpisodeStepper
-            value={entry.episodes_watched}
-            onChange={(episodes_watched) => void update(entry, { episodes_watched })}
-          />
-          <RatingInput value={entry.user_rating} onChange={(user_rating) => void update(entry, { user_rating })} />
-          <button
-            type="button"
-            onClick={() => void remove(entry)}
-            aria-label={`${entry.title} entfernen`}
-            className="ml-auto grid size-8 place-items-center rounded-full text-muted-foreground transition hover:bg-danger/10 hover:text-danger sm:ml-0 sm:opacity-0 sm:focus-visible:opacity-100 sm:group-hover:opacity-100"
-          >
-            <TrashIcon width={16} height={16} />
-          </button>
-        </div>
+        {entry.status === "dismissed" ? (
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-muted-foreground">Wird nicht mehr vorgeschlagen</span>
+            <button
+              type="button"
+              onClick={() => void update(entry, { status: "planned" })}
+              className="rounded-full border border-border bg-muted/60 px-3 py-1 text-xs font-medium text-foreground transition hover:border-border-strong hover:bg-muted"
+            >
+              Zur Watchlist
+            </button>
+            <button
+              type="button"
+              onClick={() => void remove(entry)}
+              title="Endgültig löschen"
+              aria-label={`${entry.title} endgültig löschen`}
+              className="grid size-8 place-items-center rounded-full text-muted-foreground transition hover:bg-danger/10 hover:text-danger"
+            >
+              <TrashIcon width={16} height={16} />
+            </button>
+          </div>
+        ) : (
+          <div className="flex items-center gap-4 sm:gap-6">
+            <EpisodeStepper
+              value={entry.episodes_watched}
+              onChange={(episodes_watched) => void update(entry, { episodes_watched })}
+            />
+            <RatingInput value={entry.user_rating} onChange={(user_rating) => void update(entry, { user_rating })} />
+            <button
+              type="button"
+              onClick={() => void remove(entry)}
+              aria-label={`${entry.title} entfernen`}
+              className="ml-auto grid size-8 place-items-center rounded-full text-muted-foreground transition hover:bg-danger/10 hover:text-danger sm:ml-0 sm:opacity-0 sm:focus-visible:opacity-100 sm:group-hover:opacity-100"
+            >
+              <TrashIcon width={16} height={16} />
+            </button>
+          </div>
+        )}
       </div>
     </li>
   );

@@ -57,6 +57,23 @@ export const ListIcon = (p: IconProps) => (
     <circle cx="4.5" cy="18" r="0.9" fill="currentColor" />
   </svg>
 );
+export const BookmarkIcon = (p: IconProps) => (
+  <svg {...base(p)}>
+    <path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
+  </svg>
+);
+export const EyeIcon = (p: IconProps) => (
+  <svg {...base(p)}>
+    <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
+    <circle cx="12" cy="12" r="3" />
+  </svg>
+);
+export const BanIcon = (p: IconProps) => (
+  <svg {...base(p)}>
+    <circle cx="12" cy="12" r="10" />
+    <path d="m4.9 4.9 14.2 14.2" />
+  </svg>
+);
 export const SparklesIcon = (p: IconProps) => (
   <svg {...base(p)}>
     <path d="M12 3.5 13.8 9 19.5 11 13.8 13 12 18.5 10.2 13 4.5 11 10.2 9z" />

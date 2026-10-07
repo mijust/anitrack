@@ -32,9 +32,9 @@ query Recommendations($id: Int!) {
 class RecommendationCache:
     def __init__(self, ttl_seconds: int = 60 * 60 * 24) -> None:
         self.ttl_seconds = ttl_seconds
-        self._items: Dict[Tuple[Tuple[int, ...], int], Tuple[float, List[AnimeSearchResult]]] = {}
+        self._items: Dict[Tuple[Any, ...], Tuple[float, List[AnimeSearchResult]]] = {}
 
-    def get(self, key: Tuple[Tuple[int, ...], int]) -> Optional[List[AnimeSearchResult]]:
+    def get(self, key: Tuple[Any, ...]) -> Optional[List[AnimeSearchResult]]:
         item = self._items.get(key)
         if not item:
             return None
@@ -44,7 +44,7 @@ class RecommendationCache:
             return None
         return value
 
-    def set(self, key: Tuple[Tuple[int, ...], int], value: List[AnimeSearchResult]) -> None:
+    def set(self, key: Tuple[Any, ...], value: List[AnimeSearchResult]) -> None:
         self._items[key] = (time.monotonic() + self.ttl_seconds, value)
 
 
@@ -59,16 +59,24 @@ class RecommendationService:
         self.cache = cache or RecommendationCache()
         self.max_concurrency = max_concurrency
 
-    async def get_recommendations(self, source_ids: List[int], limit: int = 10) -> List[AnimeSearchResult]:
+    async def get_recommendations(
+        self,
+        source_ids: List[int],
+        limit: int = 10,
+        excluded_ids: Optional[Set[int]] = None,
+    ) -> List[AnimeSearchResult]:
         normalized_ids = tuple(sorted(set(source_ids)))
         if not normalized_ids:
             return []
-        key = (normalized_ids, limit)
+
+        excluded: Set[int] = set(normalized_ids)
+        if excluded_ids:
+            excluded.update(excluded_ids)
+
+        key = (normalized_ids, tuple(sorted(excluded)), limit)
         cached = self.cache.get(key)
         if cached is not None:
             return cached
-
-        excluded: Set[int] = set(normalized_ids)
         semaphore = asyncio.Semaphore(self.max_concurrency)
         errors: List[Exception] = []
 

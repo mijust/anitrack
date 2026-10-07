@@ -3,7 +3,7 @@ from typing import Literal, Optional
 
 from pydantic import BaseModel, Field
 
-AnimeStatus = Literal["watching", "completed", "planned", "paused", "dropped"]
+AnimeStatus = Literal["watching", "completed", "planned", "paused", "dropped", "dismissed"]
 
 
 class AnimeEntryCreate(BaseModel):
