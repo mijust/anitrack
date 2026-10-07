@@ -24,29 +24,33 @@ export function AppHeader() {
   const { entries } = useWatchlist();
 
   return (
-    <header className="sticky top-0 z-40 border-b border-border bg-background/75 backdrop-blur-xl">
+    <header className="sticky top-0 z-40 border-b border-border/80 bg-background/80 backdrop-blur-xl">
       <div className="mx-auto flex h-14 max-w-7xl items-center gap-4 px-4 sm:px-6">
-        <Link href="/" className="flex items-center gap-2 font-semibold tracking-tight">
-          <span className="grid size-7 place-items-center rounded-lg bg-accent text-[13px] font-bold text-accent-foreground">
+        <Link href="/" className="flex items-center gap-2.5 font-semibold tracking-tight transition hover:opacity-90">
+          <span className="grid size-7 place-items-center rounded-xl bg-gradient-to-br from-indigo-500 to-indigo-600 text-[13px] font-bold text-white shadow-xs shadow-indigo-500/25 ring-1 ring-white/20">
             A
           </span>
-          <span>Anitrack</span>
+          <span className="text-[15px] font-semibold tracking-tight text-foreground">Anitrack</span>
         </Link>
 
-        <nav aria-label="Hauptnavigation" className="ml-4 hidden items-center gap-1 md:flex">
+        <nav aria-label="Hauptnavigation" className="ml-6 hidden items-center gap-1 md:flex">
           {NAV.map(({ href, label }) => (
             <Link
               key={href}
               href={href}
               aria-current={isActive(href) ? "page" : undefined}
               className={cn(
-                "inline-flex h-8 items-center gap-2 rounded-full px-3 text-sm transition-colors",
-                isActive(href) ? "bg-muted font-medium text-foreground" : "text-muted-foreground hover:text-foreground",
+                "inline-flex h-8 items-center gap-2 rounded-full px-3.5 text-sm transition-all",
+                isActive(href)
+                  ? "bg-muted font-medium text-foreground"
+                  : "text-muted-foreground hover:bg-muted/50 hover:text-foreground",
               )}
             >
               {label}
               {href === "/liste" && entries.length > 0 && (
-                <span className="rounded-full bg-foreground/10 px-1.5 text-[11px] tabular-nums">{entries.length}</span>
+                <span className="rounded-full bg-accent-soft px-1.5 text-[11px] font-semibold tabular-nums text-accent">
+                  {entries.length}
+                </span>
               )}
             </Link>
           ))}
@@ -83,7 +87,7 @@ function ThemeToggle() {
       type="button"
       onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
       aria-label="Farbschema wechseln"
-      className="grid size-9 place-items-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
+      className="grid size-9 place-items-center rounded-full text-muted-foreground transition hover:bg-muted hover:text-foreground"
     >
       <SunIcon className="hidden dark:block" />
       <MoonIcon className="dark:hidden" />
@@ -96,7 +100,7 @@ export function MobileNav() {
   return (
     <nav
       aria-label="Navigation"
-      className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background/85 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl md:hidden"
+      className="fixed inset-x-0 bottom-0 z-40 border-t border-border/80 bg-background/85 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl md:hidden"
     >
       <div className="grid grid-cols-3">
         {NAV.map(({ href, label, icon: Icon }) => (
@@ -106,7 +110,7 @@ export function MobileNav() {
             aria-current={isActive(href) ? "page" : undefined}
             className={cn(
               "flex flex-col items-center gap-1 py-2.5 text-[11px] transition-colors",
-              isActive(href) ? "text-foreground" : "text-muted-foreground",
+              isActive(href) ? "font-medium text-foreground" : "text-muted-foreground hover:text-foreground",
             )}
           >
             <Icon width={20} height={20} className={cn(isActive(href) && "text-accent")} />

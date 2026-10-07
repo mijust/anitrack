@@ -150,7 +150,7 @@ function RatingDialogContent({
           <button
             type="button"
             onClick={() => onSave(target, selectedScore)}
-            className="inline-flex h-10 items-center justify-center gap-2 rounded-full bg-foreground px-5 text-sm font-semibold text-background shadow-md transition hover:opacity-90 active:scale-95"
+            className="inline-flex h-10 items-center justify-center gap-2 rounded-full bg-indigo-600 px-5 text-sm font-semibold text-white shadow-md shadow-indigo-600/20 transition hover:bg-indigo-500 active:scale-95"
           >
             Mit {selectedScore} Sternen speichern
           </button>

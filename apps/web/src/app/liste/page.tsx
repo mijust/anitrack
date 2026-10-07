@@ -1,9 +1,9 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Poster } from "@/components/anime-card";
+import { AnimeCard, Poster } from "@/components/anime-card";
 import { useCommandSearch } from "@/components/command-search";
-import { ListIcon, MinusIcon, PlusIcon, SearchIcon, TrashIcon } from "@/components/icons";
+import { GridIcon, ListIcon, MinusIcon, PlusIcon, SearchIcon, TrashIcon } from "@/components/icons";
 import { Button, EmptyState } from "@/components/ui";
 import { useWatchlist } from "@/components/watchlist-provider";
 import type { AnimeEntry } from "@/lib/api";
@@ -15,6 +15,7 @@ export default function ListPage() {
   const { entries, ready, loadError } = useWatchlist();
   const { openSearch } = useCommandSearch();
   const [filter, setFilter] = useState<Filter>("all");
+  const [viewMode, setViewMode] = useState<"list" | "grid">("list");
   const [query, setQuery] = useState("");
 
   const counts = useMemo(() => {
@@ -49,7 +50,7 @@ export default function ListPage() {
   ];
 
   return (
-    <div className="mx-auto max-w-4xl">
+    <div className="mx-auto max-w-5xl">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Meine Liste</h1>
@@ -58,16 +59,46 @@ export default function ListPage() {
             {counts.dismissed > 0 ? ` · ${counts.dismissed} ausgeblendet` : ""}
           </p>
         </div>
-        <label className="relative block sm:w-64">
-          <span className="sr-only">Liste filtern</span>
-          <SearchIcon width={16} height={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-          <input
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder="In Liste filtern"
-            className="h-9 w-full rounded-full border border-border bg-muted/60 pl-9 pr-3 text-sm outline-none transition-colors placeholder:text-muted-foreground focus:border-border-strong"
-          />
-        </label>
+
+        <div className="flex items-center gap-2">
+          <label className="relative block sm:w-60">
+            <span className="sr-only">Liste filtern</span>
+            <SearchIcon width={15} height={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+            <input
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="In Liste filtern …"
+              className="h-9 w-full rounded-full border border-border bg-card/60 pl-9 pr-3 text-xs outline-none transition-colors placeholder:text-muted-foreground focus:border-border-strong focus:bg-card"
+            />
+          </label>
+
+          <div className="flex items-center rounded-full border border-border bg-card/60 p-0.5" role="group" aria-label="Ansicht">
+            <button
+              type="button"
+              onClick={() => setViewMode("list")}
+              title="Listenansicht"
+              aria-label="Listenansicht"
+              className={cn(
+                "grid size-8 place-items-center rounded-full transition-colors",
+                viewMode === "list" ? "bg-muted text-foreground font-medium" : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              <ListIcon width={16} height={16} />
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode("grid")}
+              title="Kachelansicht"
+              aria-label="Kachelansicht"
+              className={cn(
+                "grid size-8 place-items-center rounded-full transition-colors",
+                viewMode === "grid" ? "bg-muted text-foreground font-medium" : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              <GridIcon width={15} height={15} />
+            </button>
+          </div>
+        </div>
       </div>
 
       <div role="tablist" aria-label="Status" className="no-scrollbar -mx-4 mt-6 flex gap-1.5 overflow-x-auto px-4 sm:mx-0 sm:px-0">
@@ -79,14 +110,14 @@ export default function ListPage() {
             aria-selected={filter === tab.value}
             onClick={() => setFilter(tab.value)}
             className={cn(
-              "inline-flex h-8 shrink-0 items-center gap-2 rounded-full border px-3 text-sm transition-colors",
+              "inline-flex h-8 shrink-0 items-center gap-2 rounded-full border px-3 text-xs font-medium transition-colors",
               filter === tab.value
                 ? "border-foreground bg-foreground text-background"
                 : "border-border text-muted-foreground hover:border-border-strong hover:text-foreground",
             )}
           >
             {tab.value !== "all" && <span className={cn("size-1.5 rounded-full", STATUS_META[tab.value].dot)} />}
-            {tab.label}
+            <span>{tab.label}</span>
             <span className="tabular-nums opacity-60">{counts[tab.value]}</span>
           </button>
         ))}
@@ -110,6 +141,23 @@ export default function ListPage() {
           />
         ) : visible.length === 0 ? (
           <EmptyState icon={<SearchIcon />} title="Keine Treffer" description="Für diesen Filter gibt es keine Einträge." />
+        ) : viewMode === "grid" ? (
+          <div className="grid grid-cols-2 gap-x-4 gap-y-7 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+            {visible.map((entry) => (
+              <AnimeCard
+                key={entry.id}
+                anime={{
+                  anilist_id: entry.anilist_id,
+                  title: entry.title,
+                  cover_image: entry.cover_image,
+                  score: entry.user_rating ? entry.user_rating * 10 : null,
+                  episodes: null,
+                  genres: [],
+                }}
+                className="animate-enter"
+              />
+            ))}
+          </div>
         ) : (
           <ul className="space-y-2">
             {visible.map((entry) => (
@@ -126,12 +174,12 @@ function EntryRow({ entry }: { entry: AnimeEntry }) {
   const { update, remove } = useWatchlist();
 
   return (
-    <li className="animate-enter group flex gap-4 rounded-2xl border border-border bg-card p-3 transition-colors hover:border-border-strong">
-      <Poster src={entry.cover_image} alt={entry.title} sizes="56px" className="h-[84px] w-14 shrink-0 rounded-lg" />
+    <li className="animate-enter group flex gap-4 rounded-2xl border border-border/80 bg-card/70 p-3 transition-all hover:border-border-strong hover:bg-card">
+      <Poster src={entry.cover_image} alt={entry.title} sizes="56px" className="h-[84px] w-14 shrink-0 rounded-xl ring-1 ring-border" />
 
       <div className="flex min-w-0 flex-1 flex-col justify-between gap-3 sm:flex-row sm:items-center">
         <div className="min-w-0">
-          <p className="truncate font-medium">{entry.title}</p>
+          <p className="truncate font-medium text-foreground">{entry.title}</p>
           <div className="mt-1.5">
             <StatusSelect value={entry.status} onChange={(status) => void update(entry, { status })} />
           </div>
@@ -143,7 +191,7 @@ function EntryRow({ entry }: { entry: AnimeEntry }) {
             <button
               type="button"
               onClick={() => void update(entry, { status: "planned" })}
-              className="rounded-full border border-border bg-muted/60 px-3 py-1 text-xs font-medium text-foreground transition hover:border-border-strong hover:bg-muted"
+              className="rounded-full border border-border bg-card px-3 py-1 text-xs font-medium text-foreground transition hover:border-indigo-500/40 hover:bg-indigo-500/10 hover:text-indigo-400"
             >
               Zur Watchlist
             </button>
@@ -187,7 +235,7 @@ function StatusSelect({ value, onChange }: { value: EntryStatus; onChange: (stat
       <select
         value={value}
         onChange={(event) => onChange(event.target.value as EntryStatus)}
-        className="h-7 cursor-pointer appearance-none rounded-full border border-border bg-muted/60 pl-6 pr-3 text-xs font-medium outline-none transition-colors hover:border-border-strong"
+        className="h-7 cursor-pointer appearance-none rounded-full border border-border bg-muted/60 pl-6 pr-3 text-xs font-medium outline-none transition-colors hover:border-border-strong hover:bg-card"
       >
         {STATUS_ORDER.map((status) => (
           <option key={status} value={status}>
@@ -212,14 +260,14 @@ function EpisodeStepper({ value, onChange }: { value: number; onChange: (value: 
         <MinusIcon width={14} height={14} />
       </button>
       <div className="min-w-12 text-center">
-        <p className="text-sm font-medium tabular-nums leading-none">{value}</p>
+        <p className="text-sm font-semibold tabular-nums leading-none text-foreground">{value}</p>
         <p className="mt-0.5 text-[10px] uppercase tracking-wide text-muted-foreground">Folgen</p>
       </div>
       <button
         type="button"
         onClick={() => onChange(value + 1)}
         aria-label="Eine Folge mehr"
-        className="grid size-7 place-items-center rounded-full bg-muted text-foreground transition hover:bg-accent hover:text-accent-foreground active:scale-95"
+        className="grid size-7 place-items-center rounded-full bg-muted/80 text-foreground transition hover:bg-indigo-600 hover:text-white active:scale-95"
       >
         <PlusIcon width={14} height={14} />
       </button>
@@ -251,14 +299,14 @@ function RatingInput({ value, onChange }: { value: number | null; onChange: (val
               style={{ height: `${40 + score * 6}%` }}
               className={cn(
                 "w-1.5 rounded-full transition-colors",
-                score <= shown ? "bg-accent" : "bg-foreground/15 hover:bg-foreground/30",
+                score <= shown ? "bg-amber-400" : "bg-muted-foreground/20 hover:bg-muted-foreground/35",
               )}
             />
           );
         })}
       </div>
       <p className="text-[10px] uppercase tracking-wide text-muted-foreground tabular-nums">
-        {shown ? `${shown}/10` : "Bewerten"}
+        {shown ? `${shown}/10 ★` : "Bewerten"}
       </p>
     </div>
   );

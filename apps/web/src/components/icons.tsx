@@ -57,6 +57,14 @@ export const ListIcon = (p: IconProps) => (
     <circle cx="4.5" cy="18" r="0.9" fill="currentColor" />
   </svg>
 );
+export const GridIcon = (p: IconProps) => (
+  <svg {...base(p)}>
+    <rect x="3" y="3" width="7" height="7" rx="1.5" />
+    <rect x="14" y="3" width="7" height="7" rx="1.5" />
+    <rect x="3" y="14" width="7" height="7" rx="1.5" />
+    <rect x="14" y="14" width="7" height="7" rx="1.5" />
+  </svg>
+);
 export const BookmarkIcon = (p: IconProps) => (
   <svg {...base(p)}>
     <path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />

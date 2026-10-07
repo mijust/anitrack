@@ -4,33 +4,33 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 :root {
-  --background: #fafafa;
-  --foreground: #0a0a0b;
+  --background: #f8fafc;
+  --foreground: #0f172a;
   --card: #ffffff;
-  --muted: #f1f1f3;
-  --muted-foreground: #6b6b76;
-  --border: rgb(10 10 11 / 0.08);
-  --border-strong: rgb(10 10 11 / 0.14);
-  --accent: #e11d6b;
-  --accent-soft: rgb(225 29 107 / 0.1);
+  --muted: #f1f5f9;
+  --muted-foreground: #64748b;
+  --border: rgb(15 23 42 / 0.08);
+  --border-strong: rgb(15 23 42 / 0.14);
+  --accent: #4f46e5;
+  --accent-soft: rgb(79 70 229 / 0.08);
   --accent-foreground: #ffffff;
-  --ring: rgb(225 29 107 / 0.45);
-  --success: #059669;
-  --danger: #dc2626;
+  --ring: rgb(79 70 229 / 0.35);
+  --success: #10b981;
+  --danger: #ef4444;
 }
 
 .dark {
-  --background: #09090b;
-  --foreground: #f4f4f5;
-  --card: #111114;
-  --muted: #18181c;
-  --muted-foreground: #8e8e99;
+  --background: #090a0f;
+  --foreground: #f1f5f9;
+  --card: #111319;
+  --muted: #171a23;
+  --muted-foreground: #94a3b8;
   --border: rgb(255 255 255 / 0.07);
   --border-strong: rgb(255 255 255 / 0.13);
-  --accent: #ff4f8b;
-  --accent-soft: rgb(255 79 139 / 0.12);
-  --accent-foreground: #0a0a0b;
-  --ring: rgb(255 79 139 / 0.5);
+  --accent: #7c87f8;
+  --accent-soft: rgb(124 135 248 / 0.12);
+  --accent-foreground: #090a0f;
+  --ring: rgb(124 135 248 / 0.35);
   --success: #34d399;
   --danger: #f87171;
 }

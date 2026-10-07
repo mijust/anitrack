@@ -66,7 +66,7 @@ export default function AskPage() {
   return (
     <div className="mx-auto max-w-2xl">
       <div className="text-center">
-        <span className="inline-grid size-11 place-items-center rounded-2xl bg-accent-soft text-accent">
+        <span className="inline-grid size-12 place-items-center rounded-2xl bg-indigo-500/10 text-indigo-400 ring-1 ring-indigo-500/20 shadow-xs">
           <SparklesIcon width={22} height={22} />
         </span>
         <h1 className="mt-4 text-2xl font-semibold tracking-tight sm:text-3xl">Frag die KI</h1>
@@ -77,7 +77,7 @@ export default function AskPage() {
         </p>
       </div>
 
-      <div role="tablist" aria-label="Modus" className="mx-auto mt-8 flex w-fit rounded-full border border-border p-1">
+      <div role="tablist" aria-label="Modus" className="mx-auto mt-8 flex w-fit rounded-full border border-border bg-card/60 p-1 backdrop-blur-md">
         {MODES.map((item) => (
           <button
             key={item.value}
@@ -89,8 +89,10 @@ export default function AskPage() {
               textareaRef.current?.focus();
             }}
             className={cn(
-              "h-8 rounded-full px-4 text-sm transition-colors",
-              mode === item.value ? "bg-foreground font-medium text-background" : "text-muted-foreground hover:text-foreground",
+              "h-8 rounded-full px-4 text-xs font-medium transition-all",
+              mode === item.value
+                ? "bg-foreground text-background shadow-xs font-semibold"
+                : "text-muted-foreground hover:text-foreground",
             )}
           >
             {item.label}
@@ -100,7 +102,7 @@ export default function AskPage() {
 
       <form
         onSubmit={onSubmit}
-        className="mt-4 rounded-3xl border border-border-strong bg-card p-2 shadow-xl shadow-black/5 transition-colors focus-within:border-accent/50"
+        className="mt-5 rounded-3xl border border-border-strong/80 bg-card/80 p-2.5 shadow-xl shadow-black/5 backdrop-blur-md transition-all focus-within:border-indigo-500/50 focus-within:ring-2 focus-within:ring-indigo-500/10"
       >
         <textarea
           ref={textareaRef}
@@ -110,7 +112,7 @@ export default function AskPage() {
           placeholder={current.placeholder}
           rows={2}
           maxLength={1200}
-          className="field-sizing-content block max-h-48 min-h-14 w-full resize-none bg-transparent px-3 py-2 text-base outline-none placeholder:text-muted-foreground"
+          className="field-sizing-content block max-h-48 min-h-14 w-full resize-none bg-transparent px-3 py-2 text-base outline-none placeholder:text-muted-foreground/70"
         />
         <div className="flex items-center justify-between gap-2 px-1 pb-1">
           <span className="pl-2 text-[11px] text-muted-foreground">↵ senden · ⇧↵ neue Zeile</span>
@@ -118,7 +120,7 @@ export default function AskPage() {
             type="submit"
             disabled={loading || prompt.trim().length < 2}
             aria-label="Senden"
-            className="grid size-9 place-items-center rounded-full bg-accent text-accent-foreground transition hover:opacity-90 disabled:bg-muted disabled:text-muted-foreground"
+            className="grid size-9 place-items-center rounded-full bg-indigo-600 text-white shadow-xs transition hover:bg-indigo-500 active:scale-95 disabled:bg-muted disabled:text-muted-foreground"
           >
             {loading ? <SpinnerIcon width={16} height={16} /> : <ArrowUpIcon width={16} height={16} />}
           </button>
@@ -135,7 +137,7 @@ export default function AskPage() {
                 setPrompt(suggestion);
                 void submit(suggestion);
               }}
-              className="rounded-full border border-border px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:border-border-strong hover:text-foreground"
+              className="rounded-full border border-border bg-card/40 px-3.5 py-1.5 text-xs text-muted-foreground transition hover:border-border-strong hover:bg-card hover:text-foreground"
             >
               {suggestion}
             </button>
@@ -154,7 +156,7 @@ function ThinkingSkeleton() {
   return (
     <div className="space-y-3">
       <p className="flex items-center gap-2 text-sm text-muted-foreground">
-        <SparklesIcon width={14} height={14} className="animate-pulse text-accent" />
+        <SparklesIcon width={14} height={14} className="animate-pulse text-indigo-400" />
         Denkt nach … kostenlose Modelle brauchen manchmal ein paar Sekunden.
       </p>
       <div className="animate-pulse space-y-2">
@@ -182,12 +184,12 @@ function ResultView({ result }: { result: Result }) {
           {response.recommendations.map((item, index) => (
             <li
               key={`${item.title}-${index}`}
-              className="flex flex-col rounded-2xl border border-border bg-card p-4 transition-colors hover:border-border-strong"
+              className="flex flex-col rounded-2xl border border-border/80 bg-card/70 p-4 transition-all hover:border-border-strong hover:bg-card"
             >
               <div className="flex items-start justify-between gap-3">
                 <p className="font-medium leading-snug">{item.title}</p>
                 {item.score !== null && item.score !== undefined && (
-                  <span className="shrink-0 rounded-full bg-accent-soft px-2 py-0.5 text-xs font-medium tabular-nums text-accent">
+                  <span className="shrink-0 rounded-full bg-indigo-500/10 border border-indigo-500/20 px-2.5 py-0.5 text-xs font-semibold tabular-nums text-indigo-400">
                     {Number(item.score).toFixed(item.score % 1 ? 1 : 0)}/10
                   </span>
                 )}
@@ -196,7 +198,7 @@ function ResultView({ result }: { result: Result }) {
               <button
                 type="button"
                 onClick={() => openSearch(item.title)}
-                className="mt-4 inline-flex w-fit items-center gap-1.5 text-xs font-medium text-foreground/80 hover:text-accent"
+                className="mt-4 inline-flex w-fit items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1 text-xs font-medium text-foreground/80 transition hover:border-indigo-500/40 hover:bg-indigo-500/10 hover:text-indigo-400"
               >
                 <SearchIcon width={13} height={13} />
                 Finden & merken
@@ -217,8 +219,8 @@ function ScoreRing({ score }: { score: number }) {
       style={{ background: `conic-gradient(var(--accent) ${pct}%, var(--muted) 0)` }}
       aria-label={`Passung ${score} von 10`}
     >
-      <div className="grid size-[52px] place-items-center rounded-full bg-background">
-        <span className="text-lg font-semibold tabular-nums">{Number(score).toFixed(score % 1 ? 1 : 0)}</span>
+      <div className="grid size-[52px] place-items-center rounded-full bg-card shadow-xs">
+        <span className="text-lg font-bold tabular-nums text-foreground">{Number(score).toFixed(score % 1 ? 1 : 0)}</span>
       </div>
     </div>
   );

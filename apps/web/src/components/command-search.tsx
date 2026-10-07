@@ -229,12 +229,7 @@ export function CommandSearchProvider({ children }: { children: ReactNode }) {
                           <span
                             className={cn(
                               "inline-flex h-7 items-center gap-1 rounded-full px-2.5 text-xs font-medium",
-                              entry.status === "completed" && "bg-emerald-500/15 text-emerald-400 border border-emerald-500/20",
-                              entry.status === "planned" && "bg-violet-500/15 text-violet-400 border border-violet-500/20",
-                              entry.status === "watching" && "bg-sky-500/15 text-sky-400 border border-sky-500/20",
-                              entry.status === "paused" && "bg-amber-500/15 text-amber-400 border border-amber-500/20",
-                              entry.status === "dropped" && "bg-zinc-500/15 text-zinc-400 border border-zinc-500/20",
-                              entry.status === "dismissed" && "bg-rose-500/15 text-rose-400 border border-rose-500/20",
+                              STATUS_META[entry.status].pill,
                             )}
                           >
                             <CheckIcon width={12} height={12} />
@@ -247,7 +242,7 @@ export function CommandSearchProvider({ children }: { children: ReactNode }) {
                             onClick={() => void remove(entry)}
                             title="Aus Liste entfernen"
                             aria-label={`${anime.title} entfernen`}
-                            className="grid size-7 place-items-center rounded-full text-muted-foreground hover:bg-danger/10 hover:text-danger"
+                            className="grid size-7 place-items-center rounded-full text-muted-foreground transition hover:bg-danger/10 hover:text-danger"
                           >
                             <BanIcon width={13} height={13} />
                           </button>
@@ -258,7 +253,7 @@ export function CommandSearchProvider({ children }: { children: ReactNode }) {
                             type="button"
                             onClick={() => void addToWatchlist(anime)}
                             title="Zur Watchlist hinzufügen"
-                            className="inline-flex h-8 items-center gap-1.5 rounded-full border border-border bg-card px-2.5 text-xs font-medium text-foreground transition hover:border-border-strong hover:bg-muted active:scale-95"
+                            className="inline-flex h-8 items-center gap-1.5 rounded-full border border-border bg-card px-3 text-xs font-medium text-foreground/90 transition hover:border-indigo-500/40 hover:bg-indigo-500/10 hover:text-indigo-400 active:scale-95"
                           >
                             <BookmarkIcon width={12} height={12} />
                             <span>Watchlist</span>
@@ -267,7 +262,7 @@ export function CommandSearchProvider({ children }: { children: ReactNode }) {
                             type="button"
                             onClick={() => requestRating(anime)}
                             title="Als gesehen markieren (Sterne bewerten)"
-                            className="inline-flex h-8 items-center gap-1.5 rounded-full bg-foreground px-2.5 text-xs font-medium text-background transition hover:opacity-90 active:scale-95"
+                            className="inline-flex h-8 items-center gap-1.5 rounded-full border border-border bg-card px-3 text-xs font-medium text-foreground/90 transition hover:border-emerald-500/40 hover:bg-emerald-500/10 hover:text-emerald-400 active:scale-95"
                           >
                             <EyeIcon width={13} height={13} />
                             <span>Gesehen</span>
@@ -277,7 +272,7 @@ export function CommandSearchProvider({ children }: { children: ReactNode }) {
                             onClick={() => void dismiss(anime)}
                             title="Kein Interesse (nicht mehr vorschlagen)"
                             aria-label={`${anime.title}: Kein Interesse`}
-                            className="grid size-8 place-items-center rounded-full text-muted-foreground transition hover:bg-rose-500/10 hover:text-rose-500 active:scale-95"
+                            className="grid size-8 place-items-center rounded-full text-muted-foreground transition hover:bg-rose-500/10 hover:text-rose-400 active:scale-95"
                           >
                             <BanIcon width={14} height={14} />
                           </button>
@@ -304,7 +299,7 @@ export function CommandSearchProvider({ children }: { children: ReactNode }) {
 
 export function Kbd({ children }: { children: ReactNode }) {
   return (
-    <kbd className="inline-grid min-w-5 place-items-center rounded border border-border bg-muted px-1 font-sans text-[10px] font-medium">
+    <kbd className="inline-grid min-w-5 place-items-center rounded-md border border-border bg-muted/80 px-1.5 py-0.5 font-mono text-[10px] font-medium text-muted-foreground">
       {children}
     </kbd>
   );
@@ -317,14 +312,14 @@ export function SearchTrigger({ className, large = false }: { className?: string
       type="button"
       onClick={() => openSearch()}
       className={cn(
-        "group flex items-center gap-3 rounded-full border border-border bg-muted/60 text-left text-muted-foreground transition-colors hover:border-border-strong hover:text-foreground",
-        large ? "h-14 w-full px-5 text-base" : "h-9 px-3 text-sm",
+        "group flex items-center gap-3 rounded-full border border-border bg-card/70 text-left text-muted-foreground backdrop-blur-md transition-all hover:border-border-strong hover:bg-card hover:text-foreground",
+        large ? "h-14 w-full px-5 text-base shadow-lg shadow-black/5" : "h-9 px-3 text-sm",
         className,
       )}
     >
-      <SearchIcon width={large ? 20 : 16} height={large ? 20 : 16} />
-      <span className="flex-1 truncate">{large ? "Welchen Anime suchst du?" : "Suchen …"}</span>
-      <span className="hidden items-center gap-0.5 sm:flex">
+      <SearchIcon width={large ? 20 : 16} height={large ? 20 : 16} className="text-muted-foreground transition group-hover:text-foreground" />
+      <span className="flex-1 truncate">{large ? "Welchen Anime suchst du? (z. B. Frieren, Solo Leveling …)" : "Suchen …"}</span>
+      <span className="hidden items-center gap-1 sm:flex text-muted-foreground">
         <Kbd>⌘</Kbd>
         <Kbd>K</Kbd>
       </span>

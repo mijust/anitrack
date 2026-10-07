@@ -33,24 +33,28 @@ function Hero() {
   ];
 
   return (
-    <section className="animate-enter mx-auto max-w-2xl pt-4 text-center sm:pt-8">
+    <section className="animate-enter relative mx-auto max-w-3xl pt-4 text-center sm:pt-8">
       <h1 className="text-balance text-3xl font-semibold tracking-tight sm:text-5xl">
-        Was schaust du als <span className="text-accent">Nächstes</span>?
+        Was schaust du als{" "}
+        <span className="bg-gradient-to-r from-indigo-400 via-indigo-300 to-indigo-500 bg-clip-text text-transparent">
+          Nächstes
+        </span>
+        ?
       </h1>
-      <p className="mx-auto mt-3 max-w-md text-pretty text-muted-foreground">
+      <p className="mx-auto mt-3 max-w-md text-pretty text-sm text-muted-foreground sm:text-base">
         Suchen, merken, Fortschritt tracken – und dir von der KI etwas Neues empfehlen lassen.
       </p>
-      <SearchTrigger large className="mx-auto mt-8 max-w-xl shadow-lg shadow-black/5" />
+      <SearchTrigger large className="mx-auto mt-8 max-w-xl shadow-xl shadow-black/5" />
       <div className="mt-6 flex flex-wrap items-center justify-center gap-2">
         {stats.map((stat) => (
           <Link
             key={stat.label}
             href="/liste"
-            className="inline-flex items-center gap-2 rounded-full border border-border px-3 py-1 text-xs text-muted-foreground transition-colors hover:border-border-strong hover:text-foreground"
+            className="inline-flex items-center gap-2 rounded-full border border-border bg-card/40 px-3.5 py-1 text-xs text-muted-foreground transition hover:border-border-strong hover:bg-card hover:text-foreground"
           >
             <span className={`size-1.5 rounded-full ${stat.dot}`} />
-            <span className="font-medium tabular-nums text-foreground">{stat.value}</span>
-            {stat.label}
+            <span className="font-semibold tabular-nums text-foreground">{stat.value}</span>
+            <span>{stat.label}</span>
           </Link>
         ))}
       </div>
@@ -69,8 +73,8 @@ function ContinueWatching() {
         title="Weiterschauen"
         description="Ein Klick auf + zählt die nächste Folge."
         action={
-          <Link href="/liste" className="text-sm text-muted-foreground hover:text-foreground">
-            Alle ansehen
+          <Link href="/liste" className="text-xs font-medium text-muted-foreground hover:text-foreground transition">
+            Alle ansehen →
           </Link>
         }
       />
@@ -78,22 +82,23 @@ function ContinueWatching() {
         {watching.map((entry) => (
           <div
             key={entry.id}
-            className="flex w-72 shrink-0 snap-start items-center gap-3 rounded-2xl border border-border bg-card p-2.5 pr-3"
+            className="group flex w-72 shrink-0 snap-start items-center gap-3 rounded-2xl border border-border bg-card/60 p-2.5 pr-3 transition-colors hover:border-border-strong hover:bg-card"
           >
-            <Poster src={entry.cover_image} alt={entry.title} sizes="48px" className="h-[72px] w-12 shrink-0 rounded-lg" />
+            <Poster src={entry.cover_image} alt={entry.title} sizes="48px" className="h-[72px] w-12 shrink-0 rounded-lg ring-1 ring-border" />
             <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-medium">{entry.title}</p>
-              <p className="mt-0.5 text-xs tabular-nums text-muted-foreground">
+              <p className="truncate text-sm font-medium leading-snug">{entry.title}</p>
+              <p className="mt-1 text-xs tabular-nums text-muted-foreground">
                 {entry.episodes_watched > 0 ? `Folge ${entry.episodes_watched} gesehen` : "Noch nicht begonnen"}
               </p>
             </div>
             <button
               type="button"
               onClick={() => void update(entry, { episodes_watched: entry.episodes_watched + 1 })}
+              title="Nächste Folge"
               aria-label={`Folge ${entry.episodes_watched + 1} von ${entry.title} als gesehen markieren`}
-              className="grid size-9 shrink-0 place-items-center rounded-full bg-muted transition hover:bg-accent hover:text-accent-foreground active:scale-95"
+              className="grid size-8 shrink-0 place-items-center rounded-full bg-muted/80 text-foreground transition hover:bg-indigo-600 hover:text-white active:scale-95"
             >
-              <PlusIcon width={16} height={16} />
+              <PlusIcon width={14} height={14} />
             </button>
           </div>
         ))}

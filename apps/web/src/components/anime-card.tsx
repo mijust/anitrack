@@ -98,13 +98,8 @@ export function AnimeCard({
           {entry && (
             <span
               className={cn(
-                "inline-flex max-w-[55%] items-center gap-1 truncate rounded-full px-2 py-0.5 text-[10px] font-semibold tracking-wide shadow-sm backdrop-blur-md",
-                entry.status === "completed" && "bg-emerald-500/90 text-white",
-                entry.status === "planned" && "bg-violet-500/90 text-white",
-                entry.status === "watching" && "bg-sky-500/90 text-white",
-                entry.status === "paused" && "bg-amber-500/90 text-white",
-                entry.status === "dropped" && "bg-zinc-600/90 text-white",
-                entry.status === "dismissed" && "bg-rose-600/90 text-white",
+                "inline-flex max-w-[55%] items-center gap-1 truncate rounded-full px-2 py-0.5 text-[10px] font-semibold tracking-wide backdrop-blur-md",
+                STATUS_META[entry.status].badge,
               )}
             >
               <span className="truncate">
@@ -145,8 +140,8 @@ export function AnimeCard({
                   className={cn(
                     "flex h-8 items-center justify-center rounded-xl transition active:scale-90",
                     entry?.status === "planned"
-                      ? "bg-violet-500 text-white shadow-sm"
-                      : "bg-white/10 text-white/90 hover:bg-violet-500/30 hover:text-white",
+                      ? "bg-indigo-600 text-white shadow-xs"
+                      : "bg-white/10 text-white/90 hover:bg-indigo-500/25 hover:text-indigo-200",
                   )}
                 >
                   {entry?.status === "planned" ? (
@@ -169,8 +164,8 @@ export function AnimeCard({
                   className={cn(
                     "flex h-8 items-center justify-center rounded-xl transition active:scale-90",
                     entry?.status === "completed"
-                      ? "bg-emerald-500 text-white shadow-sm"
-                      : "bg-white/10 text-white/90 hover:bg-emerald-500/30 hover:text-white",
+                      ? "bg-emerald-600 text-white shadow-xs"
+                      : "bg-white/10 text-white/90 hover:bg-emerald-500/25 hover:text-emerald-200",
                   )}
                 >
                   <EyeIcon width={15} height={15} />
@@ -182,7 +177,7 @@ export function AnimeCard({
                   onClick={() => void dismiss(anime)}
                   title="Kein Interesse (nicht mehr vorschlagen)"
                   aria-label={`${anime.title}: Kein Interesse`}
-                  className="flex h-8 items-center justify-center rounded-xl bg-white/10 text-white/70 transition hover:bg-rose-500/30 hover:text-rose-200 active:scale-90"
+                  className="flex h-8 items-center justify-center rounded-xl bg-white/10 text-white/70 transition hover:bg-rose-500/25 hover:text-rose-200 active:scale-90"
                 >
                   <BanIcon width={14} height={14} />
                 </button>
@@ -192,10 +187,10 @@ export function AnimeCard({
         )}
       </div>
 
-      <h3 className="mt-2.5 line-clamp-2 text-sm font-medium leading-snug" title={anime.title}>
+      <h3 className="mt-2.5 line-clamp-2 text-sm font-medium leading-snug text-foreground/90 transition group-hover:text-foreground" title={anime.title}>
         {anime.title}
       </h3>
-      {meta && <p className="mt-0.5 truncate text-xs text-muted-foreground">{meta}</p>}
+      {meta && <p className="mt-0.5 truncate text-xs text-muted-foreground/80">{meta}</p>}
     </article>
   );
 }
