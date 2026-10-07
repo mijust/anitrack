@@ -2,25 +2,19 @@
   "name": "anime-tracker",
   "version": "0.1.0",
   "private": true,
+  "workspaces": [
+    "apps/web"
+  ],
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
-    "lint": "eslint"
-  },
-  "dependencies": {
-    "next": "16.4.0",
-    "react": "19.3.0",
-    "react-dom": "19.3.0"
-  },
-  "devDependencies": {
-    "@tailwindcss/turbopack": "^4",
-    "@types/node": "^20",
-    "@types/react": "^19",
-    "@types/react-dom": "^19",
-    "eslint": "^9",
-    "eslint-config-next": "16.4.0",
-    "tailwindcss": "^4",
-    "typescript": "^5"
+    "dev": "npm run dev --workspace apps/web",
+    "dev:web": "npm run dev --workspace apps/web",
+    "dev:api": "cd apps/api && .venv/bin/uvicorn app.main:app --reload --port 8000",
+    "build": "npm run build --workspace apps/web",
+    "start": "npm run start --workspace apps/web",
+    "lint": "npm run lint --workspace apps/web",
+    "typecheck": "npm run typecheck --workspace apps/web",
+    "test:api": "PYTHONPATH=apps/api apps/api/.venv/bin/pytest -q apps/api/tests",
+    "db:up": "docker compose up -d db",
+    "db:down": "docker compose down"
   }
 }

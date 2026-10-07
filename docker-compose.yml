@@ -1,0 +1,55 @@
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-anime}
+      POSTGRES_USER: ${POSTGRES_USER:-anime}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-securepassword}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-anime} -d ${POSTGRES_DB:-anime}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build:
+      context: ./apps/api
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-anime}:${POSTGRES_PASSWORD:-securepassword}@db:5432/${POSTGRES_DB:-anime}
+      - APP_NAME=${APP_NAME:-Anime Tracker API}
+      - ENVIRONMENT=${ENVIRONMENT:-production}
+      - FRONTEND_URL=${FRONTEND_URL:-http://localhost:3000}
+      - SESSION_SECRET=${SESSION_SECRET:-change-me-to-a-very-secure-random-secret-key-32-chars}
+      - ANILIST_API_URL=${ANILIST_API_URL:-https://graphql.anilist.co}
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY:-}
+      - OPENROUTER_MODEL=${OPENROUTER_MODEL:-google/gemma-4-31b-it:free}
+      - OPENROUTER_API_URL=${OPENROUTER_API_URL:-https://openrouter.ai/api/v1/chat/completions}
+    ports:
+      - "${API_PORT:-8000}:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8000}
+    restart: unless-stopped
+    environment:
+      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://localhost:8000}
+    ports:
+      - "${WEB_PORT:-3000}:3000"
+    depends_on:
+      - api
+
+volumes:
+  postgres_data:

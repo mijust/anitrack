@@ -1,36 +1,91 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+## Anime Tracker
 
-## Getting Started
+Monorepo für die Anime-Tracker-WebApp. Die aktuelle Umsetzung enthält Authentifizierung, AniList-Suche, saisonale Übersichten, Anime Ask, personalisierte Recommendations und eine persistente Watchlist mit PostgreSQL.
 
-First, run the development server:
+### Voraussetzungen
+
+- Node.js 20 oder neuer
+- Python 3.9 oder neuer
+- Docker Desktop für PostgreSQL
+
+### Web-App starten
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Die Web-App läuft unter http://localhost:3000
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Konfiguration (Zentrale Secrets im Root)
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Alle Zugangsdaten, API-Keys und Umgebungsvariablen werden zentral in einer einzigen `.env`-Datei im Repository-Root gepflegt:
 
-## Learn More
+```bash
+cp .env.example .env
+```
 
-To learn more about Next.js, take a look at the following resources:
+Sowohl Docker Compose, das FastAPI-Backend (`apps/api`) als auch das Next.js Frontend (`apps/web`) laden ihre Einstellungen automatisch aus dieser Datei.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+#### Übersicht aller Keys & Secrets
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+| Variable | Erforderlich? | Woher bekommen? / Zweck | Standardwert (Entwicklung) |
+| :--- | :---: | :--- | :--- |
+| **`OPENROUTER_API_KEY`** | **Für KI** | Erstelle einen kostenlosen API-Key auf [openrouter.ai/keys](https://openrouter.ai/keys). Wird für den KI-Assistenten *Anime Ask* benötigt. | *(leer / optional)* |
+| **`OPENROUTER_MODEL`** | Optional | Das gewünschte Sprachmodell auf OpenRouter. Standard ist ein kostenloses Modell. | `google/gemma-4-31b-it:free` |
+| **`SESSION_SECRET`** | **Ja** | Beliebiger geheimer String für Login-Session-Cookies. In Produktion mind. 32 Zeichen (z. B. via `openssl rand -hex 32`). | `change-me-to-a-very-secure-...` |
+| **`POSTGRES_USER`** | **Ja** | Benutzername für die lokale PostgreSQL-Datenbank (Docker). | `anime` |
+| **`POSTGRES_PASSWORD`** | **Ja** | Passwort für den PostgreSQL-Benutzer (Docker & Backend). | `securepassword` |
+| **`POSTGRES_DB`** | **Ja** | Name der Datenbank. | `anime` |
+| **`POSTGRES_PORT`** | Optional | Port für den PostgreSQL-Container. | `5432` |
+| **`DATABASE_URL`** | **Ja** | Async-Connection-String für SQLAlchemy & Alembic Migrations. | `postgresql+asyncpg://anime:securepassword@localhost:5432/anime` |
+| **`FRONTEND_URL`** | **Ja** | URL des Next.js Frontends (für CORS & Cookie-Sicherheit). | `http://localhost:3000` |
+| **`NEXT_PUBLIC_API_URL`** | **Ja** | Öffentliche URL des FastAPI-Backends für Browser-Requests. | `http://localhost:8000` |
+| **`ANILIST_API_URL`** | Nein | Öffentliche AniList GraphQL API (**Kein API-Key erforderlich!**). | `https://graphql.anilist.co` |
 
-## Deploy on Vercel
+> [!NOTE]
+> **Brauche ich einen AniList API-Key?**
+> Nein. Die Katalogsuche, saisonale Listen und Empfehlungen laufen über die öffentliche AniList GraphQL API, die keinen API-Schlüssel voraussetzt.
+>
+> **Brauche ich zwingend einen OpenRouter API-Key?**
+> Nur wenn du das KI-Feature *Anime Ask* (individuelle Bewertung und Empfehlungen durch ein LLM) nutzen möchtest. Der Rest der App (Suche, Watchlist, Saisonübersicht) funktioniert auch ohne `OPENROUTER_API_KEY`.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+### PostgreSQL starten
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```bash
+docker compose up -d db
+# oder: npm run db:up
+```
+
+Die lokale Datenbank liest ihre Konfiguration direkt aus der Root-`.env`.
+
+### API starten
+
+```bash
+cd apps/api
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+alembic upgrade head
+uvicorn app.main:app --reload --port 8000
+# oder aus dem Root: npm run dev:api
+```
+
+Die Health-Endpunkte sind `/health` und `/health/db`.
+
+Für saisonale Daten wird `GET /api/catalog/seasonal` verwendet. Anime Ask läuft über `POST /api/anime-ask` und benötigt einen gesetzten `OPENROUTER_API_KEY`. Recommendations kommen über `GET /api/recommendations`; sie schließen bereits gelistete Anime aus und werden 24 Stunden pro API-Prozess gecacht.
+
+Backend-Tests laufen aus dem Repository-Root mit:
+
+```bash
+npm run test:api
+# bzw.: PYTHONPATH=apps/api apps/api/.venv/bin/pytest -q apps/api/tests
+```
+
+### Struktur
+
+- `apps/web`: Next.js App Router, TypeScript und Tailwind CSS 4
+- `apps/api`: FastAPI, Async-SQLAlchemy und externe API-Clients
+- `docker-compose.yml`: lokale PostgreSQL-Instanz
+
+Für produktive Mehrprozess-Deployments sollte der In-Memory-Cache später durch Redis oder einen Datenbank-Cache ersetzt werden.

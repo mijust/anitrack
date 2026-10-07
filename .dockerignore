@@ -1,0 +1,15 @@
+# Docker Build Context Ignore
+.git
+.github
+node_modules
+apps/web/node_modules
+.venv
+apps/api/.venv
+venv
+.next
+apps/web/.next
+.env*
+!.env.example
+coverage
+*.log
+.DS_Store

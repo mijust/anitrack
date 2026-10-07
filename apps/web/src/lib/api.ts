@@ -1,0 +1,89 @@
+export type User = {
+  id: number;
+  username: string;
+  created_at: string;
+};
+
+export type AnimeEntry = {
+  id: number;
+  user_id: number;
+  anilist_id: number;
+  title: string;
+  cover_image: string | null;
+  user_rating: number | null;
+  status: "watching" | "completed" | "planned" | "paused" | "dropped";
+  episodes_watched: number;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type AnimeSearchResult = {
+  anilist_id: number;
+  title: string;
+  cover_image: string | null;
+  score: number | null;
+  episodes: number | null;
+  genres: string[];
+};
+
+export type SeasonSelection = {
+  season: "WINTER" | "SPRING" | "SUMMER" | "FALL";
+  year: number;
+};
+
+export type AnimeAskResponse = {
+  answer: string;
+  score: number | null;
+  recommendations: { title: string; score: number | null; reason: string }[];
+};
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+
+async function request<T>(path: string, options?: RequestInit): Promise<T> {
+  const response = await fetch(`${API_URL}${path}`, {
+    ...options,
+    credentials: "include",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+  });
+
+  if (!response.ok) {
+    const body = await response.json().catch(() => null);
+    throw new Error(body?.detail ?? "Anfrage fehlgeschlagen");
+  }
+  return response.status === 204 ? (undefined as T) : response.json();
+}
+
+export const api = {
+  me: () => request<User>("/api/auth/me"),
+  login: (username: string, password: string) =>
+    request<User>("/api/auth/login", { method: "POST", body: JSON.stringify({ username, password }) }),
+  register: (username: string, password: string) =>
+    request<User>("/api/auth/register", { method: "POST", body: JSON.stringify({ username, password }) }),
+  logout: () => request<void>("/api/auth/logout", { method: "POST" }),
+  search: (query: string, signal?: AbortSignal) => request<AnimeSearchResult[]>(`/api/catalog/search?search=${encodeURIComponent(query)}`, { signal }),
+  seasonal: (selection: SeasonSelection, genre?: string, signal?: AbortSignal) => {
+    const params = new URLSearchParams({ season: selection.season, year: String(selection.year) });
+    if (genre) params.set("genre", genre);
+    return request<AnimeSearchResult[]>(`/api/catalog/seasonal?${params.toString()}`, { signal });
+  },
+  recommendations: (limit = 10, signal?: AbortSignal) => request<AnimeSearchResult[]>(`/api/recommendations?limit=${limit}`, { signal }),
+  ask: (mode: "evaluate" | "recommend", prompt: string) =>
+    request<AnimeAskResponse>("/api/anime-ask", {
+      method: "POST",
+      body: JSON.stringify({ mode, prompt }),
+    }),
+  entries: (status?: string, signal?: AbortSignal) =>
+    request<AnimeEntry[]>(status ? `/api/anime-entries?status=${status}` : "/api/anime-entries", { signal }),
+  createEntry: (anime: AnimeSearchResult) =>
+    request<AnimeEntry>("/api/anime-entries", {
+      method: "POST",
+      body: JSON.stringify({
+        anilist_id: anime.anilist_id,
+        title: anime.title,
+        cover_image: anime.cover_image,
+      }),
+    }),
+  updateEntry: (id: number, update: Partial<Pick<AnimeEntry, "status" | "user_rating" | "episodes_watched" | "notes">>) =>
+    request<AnimeEntry>(`/api/anime-entries/${id}`, { method: "PATCH", body: JSON.stringify(update) }),
+};
