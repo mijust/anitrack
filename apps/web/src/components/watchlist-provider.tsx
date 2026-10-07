@@ -19,6 +19,7 @@ type WatchlistContextValue = {
   isPending: (anilistId: number) => boolean;
   add: (anime: Addable) => Promise<void>;
   addToWatchlist: (anime: Addable) => Promise<void>;
+  markWatching: (anime: Addable) => Promise<void>;
   markWatched: (anime: Addable, rating?: number | null) => Promise<void>;
   dismiss: (anime: Addable) => Promise<void>;
   update: (entry: AnimeEntry, patch: EntryPatch) => Promise<void>;
@@ -190,6 +191,13 @@ export function WatchlistProvider({ children }: { children: ReactNode }) {
     [addWithStatus],
   );
 
+  const markWatching = useCallback(
+    async (anime: Addable) => {
+      await addWithStatus(anime, "watching", undefined, `„${anime.title}“ als „Schaue ich“ markiert`);
+    },
+    [addWithStatus],
+  );
+
   const markWatched = useCallback(
     async (anime: Addable, rating?: number | null) => {
       const ratingText = rating !== null && rating !== undefined ? ` (${rating}/10 Sterne)` : "";
@@ -268,6 +276,7 @@ export function WatchlistProvider({ children }: { children: ReactNode }) {
       isPending: (id) => pending.has(id),
       add: addToWatchlist,
       addToWatchlist,
+      markWatching,
       markWatched,
       dismiss,
       update,
@@ -285,6 +294,7 @@ export function WatchlistProvider({ children }: { children: ReactNode }) {
       entryMap,
       pending,
       addToWatchlist,
+      markWatching,
       markWatched,
       dismiss,
       update,

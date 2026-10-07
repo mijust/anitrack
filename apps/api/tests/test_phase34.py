@@ -34,6 +34,42 @@ async def test_seasonal_catalog_maps_filters(monkeypatch: pytest.MonkeyPatch) ->
 
 
 @pytest.mark.asyncio
+async def test_airing_catalog_maps_next_episode(monkeypatch: pytest.MonkeyPatch) -> None:
+    captured = {}
+
+    async def fake_execute(query: str, variables: dict) -> dict:
+        captured.update(variables)
+        return {"Page": {"media": [{
+            "id": 42,
+            "title": {"english": "Airing Show", "romaji": "Airing Show Romaji", "userPreferred": "Airing Show"},
+            "coverImage": {"large": "https://s4.anilist.co/cover.jpg"},
+            "averageScore": 90,
+            "episodes": 24,
+            "genres": ["Action"],
+            "status": "RELEASING",
+            "nextAiringEpisode": {
+                "episode": 5,
+                "airingAt": 1800000000,
+                "timeUntilAiring": 3600,
+            },
+        }]}}
+
+    monkeypatch.setattr(catalog.client, "execute", fake_execute)
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        response = await client.get("/api/catalog/airing?ids=42")
+
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data) == 1
+    assert data[0]["anilist_id"] == 42
+    assert data[0]["status"] == "RELEASING"
+    assert data[0]["next_airing"]["episode"] == 5
+    assert data[0]["next_airing"]["time_until_airing"] == 3600
+    assert captured["ids"] == [42]
+
+
+
+@pytest.mark.asyncio
 async def test_anime_ask_requires_openrouter_key(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(anime_ask.settings, "openrouter_api_key", None)
     app.dependency_overrides[get_current_user] = lambda: User(id=1, username="tester", password_hash="hash")

@@ -6,7 +6,9 @@ import {
   BanIcon,
   BookmarkIcon,
   CheckIcon,
+  ClockIcon,
   EyeIcon,
+  PlayIcon,
   SparklesIcon,
   SpinnerIcon,
   StarIcon,
@@ -16,7 +18,7 @@ import { useEvaluation } from "@/components/evaluation-dialog";
 import { useWatchlist } from "@/components/watchlist-provider";
 import type { AnimeSearchResult } from "@/lib/api";
 import type { GroupedAnime } from "@/lib/grouping";
-import { cn, formatScore, STATUS_META } from "@/lib/utils";
+import { cn, formatAiringDateTime, formatScore, formatShortCountdown, STATUS_META } from "@/lib/utils";
 
 export function Poster({
   src,
@@ -57,7 +59,7 @@ export function AnimeCard({
   anime: AnimeSearchResult | GroupedAnime<AnimeSearchResult>;
   className?: string;
 }) {
-  const { getEntry, isPending, addToWatchlist, requestRating, dismiss, remove } = useWatchlist();
+  const { getEntry, isPending, addToWatchlist, markWatching, requestRating, dismiss, remove } = useWatchlist();
   const { openEvaluation } = useEvaluation();
   const { openDetails } = useAnimeDetail();
 
@@ -125,6 +127,15 @@ export function AnimeCard({
                 {seasonCount} Staffeln
               </span>
             )}
+            {"next_airing" in anime && anime.next_airing ? (
+              <span
+                title={`Nächste Folge ${anime.next_airing.episode}: ${formatAiringDateTime(anime.next_airing.airing_at)}`}
+                className="inline-flex shrink-0 items-center gap-1 rounded-full bg-sky-950/85 border border-sky-400/40 px-2 py-0.5 text-[10px] font-semibold text-sky-200 shadow-sm backdrop-blur-md"
+              >
+                <ClockIcon width={10} height={10} className="text-sky-400" />
+                <span>Ep {anime.next_airing.episode} · {formatShortCountdown(anime.next_airing.time_until_airing)}</span>
+              </span>
+            ) : null}
           </div>
 
           {entry && (
@@ -150,9 +161,9 @@ export function AnimeCard({
           </div>
         )}
 
-        {/* Aktionsleiste unten am Poster: KI-Bewertung, Watchlist, Watched (Gesehen), Kein Interesse */}
+        {/* Aktionsleiste unten am Poster: KI-Bewertung, Schaue ich, Watchlist, Watched (Gesehen), Kein Interesse */}
         {!busy && (
-          <div className="absolute inset-x-1.5 bottom-2 z-10 grid grid-cols-4 gap-1 rounded-2xl border border-white/15 bg-black/85 p-1 shadow-lg backdrop-blur-md transition-all duration-200 opacity-0 translate-y-1 group-hover:translate-y-0 group-hover:opacity-100 group-focus-within:translate-y-0 group-focus-within:opacity-100 [@media(hover:none)]:translate-y-0 [@media(hover:none)]:opacity-100">
+          <div className="absolute inset-x-1.5 bottom-2 z-10 grid grid-cols-5 gap-1 rounded-2xl border border-white/15 bg-black/85 p-1 shadow-lg backdrop-blur-md transition-all duration-200 opacity-0 translate-y-1 group-hover:translate-y-0 group-hover:opacity-100 group-focus-within:translate-y-0 group-focus-within:opacity-100 [@media(hover:none)]:translate-y-0 [@media(hover:none)]:opacity-100">
             {isDismissed ? (
               <button
                 type="button"
@@ -160,7 +171,7 @@ export function AnimeCard({
                   e.stopPropagation();
                   void remove(entry);
                 }}
-                className="col-span-4 flex h-8 items-center justify-center gap-1.5 rounded-xl bg-white/20 px-2.5 text-[11px] font-medium text-white transition hover:bg-white/30"
+                className="col-span-5 flex h-8 items-center justify-center gap-1.5 rounded-xl bg-white/20 px-2.5 text-[11px] font-medium text-white transition hover:bg-white/30"
               >
                 Wiederherstellen
               </button>
@@ -180,7 +191,26 @@ export function AnimeCard({
                   <SparklesIcon width={14} height={14} />
                 </button>
 
-                {/* 2. Watchlist */}
+                {/* 2. Schaue ich (Aktiv) */}
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    void markWatching(anime);
+                  }}
+                  title={entry?.status === "watching" ? "Wird gerade geschaut (Aktiv)" : "Schaue ich gerade (Aktiv)"}
+                  aria-label={`${anime.title} als am Schauen markieren`}
+                  className={cn(
+                    "flex h-8 items-center justify-center rounded-xl transition active:scale-90",
+                    entry?.status === "watching"
+                      ? "bg-sky-600 text-white shadow-xs"
+                      : "bg-white/10 text-white/90 hover:bg-sky-500/25 hover:text-sky-200",
+                  )}
+                >
+                  <PlayIcon width={13} height={13} className={entry?.status === "watching" ? "fill-current" : ""} />
+                </button>
+
+                {/* 3. Watchlist */}
                 <button
                   type="button"
                   onClick={(e) => {
@@ -203,7 +233,7 @@ export function AnimeCard({
                   )}
                 </button>
 
-                {/* 3. Watched (Gesehen) mit Sterne-Abfrage */}
+                {/* 4. Watched (Gesehen) mit Sterne-Abfrage */}
                 <button
                   type="button"
                   onClick={(e) => {
@@ -226,7 +256,7 @@ export function AnimeCard({
                   <EyeIcon width={15} height={15} />
                 </button>
 
-                {/* 4. Kein Interesse */}
+                {/* 5. Kein Interesse */}
                 <button
                   type="button"
                   onClick={(e) => {

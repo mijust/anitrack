@@ -100,3 +100,52 @@ export function formatScore(score: number | null | undefined): string | null {
   if (score === null || score === undefined) return null;
   return (score / 10).toFixed(1);
 }
+
+/* ---------- Airing & Countdown Helpers ---------- */
+
+export function getTimeUntilSeconds(airingAtUnix: number): number {
+  return Math.max(0, airingAtUnix - Math.floor(Date.now() / 1000));
+}
+
+export function formatCountdown(secondsUntil: number): string {
+  if (secondsUntil <= 0) return "Jetzt verfügbar";
+  const days = Math.floor(secondsUntil / 86400);
+  const hours = Math.floor((secondsUntil % 86400) / 3600);
+  const minutes = Math.floor((secondsUntil % 3600) / 60);
+
+  if (days > 1) {
+    return `Noch ${days} Tage, ${hours} Std.`;
+  }
+  if (days === 1) {
+    return `Noch 1 Tag, ${hours} Std.`;
+  }
+  if (hours > 0) {
+    return `Noch ${hours} Std., ${minutes} Min.`;
+  }
+  return `Noch ${Math.max(1, minutes)} Min.`;
+}
+
+export function formatShortCountdown(secondsUntil: number): string {
+  if (secondsUntil <= 0) return "Jetzt";
+  const days = Math.floor(secondsUntil / 86400);
+  const hours = Math.floor((secondsUntil % 86400) / 3600);
+  const minutes = Math.floor((secondsUntil % 3600) / 60);
+
+  if (days > 0) return `${days}d ${hours}h`;
+  if (hours > 0) return `${hours}h ${minutes}m`;
+  return `${minutes}m`;
+}
+
+export function formatAiringDateTime(airingAtUnix: number): string {
+  const date = new Date(airingAtUnix * 1000);
+  const weekday = date.toLocaleDateString("de-DE", { weekday: "short" });
+  const dayMonth = date.toLocaleDateString("de-DE", { day: "2-digit", month: "short" });
+  const time = date.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" });
+  return `${weekday}, ${dayMonth} · ${time} Uhr`;
+}
+
+export function formatAiringWeekday(airingAtUnix: number): string {
+  const date = new Date(airingAtUnix * 1000);
+  return date.toLocaleDateString("de-DE", { weekday: "long" });
+}
+

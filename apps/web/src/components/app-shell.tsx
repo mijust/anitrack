@@ -3,13 +3,15 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTheme } from "next-themes";
+import { useMemo } from "react";
 import { SearchTrigger, useCommandSearch } from "@/components/command-search";
-import { CompassIcon, ListIcon, MoonIcon, SearchIcon, SparklesIcon, SunIcon } from "@/components/icons";
+import { ClockIcon, CompassIcon, ListIcon, MoonIcon, SearchIcon, SparklesIcon, SunIcon } from "@/components/icons";
 import { useWatchlist } from "@/components/watchlist-provider";
 import { cn } from "@/lib/utils";
 
 const NAV = [
   { href: "/", label: "Entdecken", icon: CompassIcon },
+  { href: "/active", label: "Active", icon: ClockIcon },
   { href: "/liste", label: "Meine Liste", icon: ListIcon },
   { href: "/ask", label: "KI-Assistent", icon: SparklesIcon },
 ] as const;
@@ -22,6 +24,11 @@ function useIsActive() {
 export function AppHeader() {
   const isActive = useIsActive();
   const { entries } = useWatchlist();
+
+  const activeCount = useMemo(
+    () => entries.filter((e) => e.status === "watching").length,
+    [entries],
+  );
 
   return (
     <header className="sticky top-0 z-40 border-b border-border/80 bg-background/80 backdrop-blur-xl">
@@ -47,6 +54,12 @@ export function AppHeader() {
               )}
             >
               {label}
+              {href === "/active" && activeCount > 0 && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-sky-500/15 px-1.5 py-0.5 text-[11px] font-semibold tabular-nums text-sky-400 border border-sky-500/30">
+                  <span className="size-1.5 rounded-full bg-sky-400 animate-pulse" />
+                  {activeCount}
+                </span>
+              )}
               {href === "/liste" && entries.length > 0 && (
                 <span className="rounded-full bg-accent-soft px-1.5 text-[11px] font-semibold tabular-nums text-accent">
                   {entries.length}
@@ -102,7 +115,7 @@ export function MobileNav() {
       aria-label="Navigation"
       className="fixed inset-x-0 bottom-0 z-40 border-t border-border/80 bg-background/85 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl md:hidden"
     >
-      <div className="grid grid-cols-3">
+      <div className="grid grid-cols-4">
         {NAV.map(({ href, label, icon: Icon }) => (
           <Link
             key={href}

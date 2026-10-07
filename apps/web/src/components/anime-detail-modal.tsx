@@ -7,6 +7,7 @@ import {
   BanIcon,
   BookmarkIcon,
   CheckIcon,
+  ClockIcon,
   EyeIcon,
   PlayIcon,
   SparklesIcon,
@@ -17,7 +18,7 @@ import {
 import { useWatchlist } from "@/components/watchlist-provider";
 import { api, AnimeDetails } from "@/lib/api";
 import { extractSeasonOrder, getSeasonLabel, normalizeFranchiseTitle } from "@/lib/grouping";
-import { cn, errorMessage, formatScore, STATUS_META } from "@/lib/utils";
+import { cn, errorMessage, formatAiringDateTime, formatCountdown, formatScore, STATUS_META } from "@/lib/utils";
 
 export type SeasonItem = {
   anilist_id: number;
@@ -132,7 +133,7 @@ function AnimeDetailModal({
   onRetry: () => void;
 }) {
   const { openEvaluation } = useEvaluation();
-  const { getEntry, addToWatchlist, requestRating, dismiss, addAllToWatchlist } = useWatchlist();
+  const { getEntry, addToWatchlist, markWatching, requestRating, dismiss, addAllToWatchlist } = useWatchlist();
   const [expandedDesc, setExpandedDesc] = useState(false);
   const [showVideoTrailer, setShowVideoTrailer] = useState(false);
 
@@ -366,6 +367,21 @@ function AnimeDetailModal({
               {/* 2. Watchlist Status Buttons */}
               {anilistId && (
                 <>
+                  {/* Schaue ich (Aktiv) */}
+                  <button
+                    type="button"
+                    onClick={() => void markWatching({ anilist_id: anilistId, title: displayTitle, cover_image: coverUrl ?? null })}
+                    className={cn(
+                      "inline-flex items-center gap-1.5 rounded-full px-3.5 py-2 text-xs font-medium transition active:scale-95",
+                      entry?.status === "watching"
+                        ? "bg-sky-500/20 text-sky-300 border border-sky-500/30 font-semibold"
+                        : "border border-border bg-card/60 text-foreground hover:bg-muted",
+                    )}
+                  >
+                    <PlayIcon width={13} height={13} className={entry?.status === "watching" ? "fill-current text-sky-400" : ""} />
+                    <span>{entry?.status === "watching" ? "Schaue ich gerade" : "Schaue ich"}</span>
+                  </button>
+
                   <button
                     type="button"
                     onClick={() => void addToWatchlist({ anilist_id: anilistId, title: displayTitle, cover_image: coverUrl ?? null })}
@@ -398,7 +414,7 @@ function AnimeDetailModal({
                     type="button"
                     onClick={() => void dismiss({ anilist_id: anilistId, title: displayTitle, cover_image: coverUrl ?? null })}
                     className={cn(
-                      "inline-flex items-center gap-1.5 rounded-full px-3 py-2 text-xs font-medium transition active:scale-95",
+                      "inline-flex items-center gap-1.5 rounded-full px-3.5 py-2 text-xs font-medium transition active:scale-95",
                       isDismissed
                         ? "bg-rose-500/20 text-rose-300 border border-rose-500/30"
                         : "border border-border bg-card/60 text-muted-foreground hover:text-rose-400 hover:bg-rose-500/10",
@@ -430,6 +446,41 @@ function AnimeDetailModal({
                 </>
               )}
             </div>
+
+            {/* Live Airing Banner (Nächste Folge Countdown) */}
+            {details?.next_airing && (
+              <div className="mt-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-2xl border border-sky-500/30 bg-sky-500/10 p-3.5 shadow-sm">
+                <div className="flex items-start sm:items-center gap-3">
+                  <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-sky-500/20 text-sky-300 border border-sky-500/30">
+                    <ClockIcon width={18} height={18} />
+                  </span>
+                  <div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="text-xs font-semibold text-sky-300 uppercase tracking-wider">
+                        Nächste Folge {details.next_airing.episode}
+                      </span>
+                      <span className="inline-flex items-center gap-1 rounded-full bg-sky-400/20 px-2 py-0.5 text-[10px] font-bold text-sky-200">
+                        {formatCountdown(details.next_airing.time_until_airing)}
+                      </span>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      Ausstrahlung: {formatAiringDateTime(details.next_airing.airing_at)}
+                    </p>
+                  </div>
+                </div>
+
+                {entry?.status !== "watching" && anilistId && (
+                  <button
+                    type="button"
+                    onClick={() => void markWatching({ anilist_id: anilistId, title: displayTitle, cover_image: coverUrl ?? null })}
+                    className="self-start sm:self-auto inline-flex items-center gap-1.5 rounded-full bg-sky-600 px-3 py-1.5 text-xs font-medium text-white shadow-xs transition hover:bg-sky-500 active:scale-95"
+                  >
+                    <PlayIcon width={12} height={12} className="fill-current" />
+                    <span>Zu „Schaue ich“</span>
+                  </button>
+                )}
+              </div>
+            )}
 
             {/* Staffeln & Fortsetzungen Switcher */}
             {seasonsList.length > 1 && (

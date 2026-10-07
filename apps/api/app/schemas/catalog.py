@@ -3,6 +3,12 @@ from typing import List, Optional
 from pydantic import BaseModel, Field
 
 
+class NextAiring(BaseModel):
+    episode: int
+    airing_at: int
+    time_until_airing: int
+
+
 class AnimeSearchResult(BaseModel):
     anilist_id: int
     title: str
@@ -10,6 +16,8 @@ class AnimeSearchResult(BaseModel):
     score: Optional[int] = None
     episodes: Optional[int] = None
     genres: List[str] = Field(default_factory=list)
+    status: Optional[str] = None
+    next_airing: Optional[NextAiring] = None
 
 
 class AnimeStudio(BaseModel):
@@ -27,12 +35,6 @@ class AnimeTrailer(BaseModel):
 class AnimeTag(BaseModel):
     name: str
     rank: Optional[int] = None
-
-
-class NextAiring(BaseModel):
-    episode: int
-    airing_at: int
-    time_until_airing: int
 
 
 class AnimeRelation(BaseModel):

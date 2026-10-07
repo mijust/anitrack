@@ -69,6 +69,42 @@ query SeasonalAnime(
       averageScore
       episodes
       genres
+      status
+      nextAiringEpisode {
+        episode
+        airingAt
+        timeUntilAiring
+      }
+    }
+  }
+}
+"""
+
+AIRING_QUERY = """
+query AiringAnime($ids: [Int], $status: MediaStatus, $perPage: Int!) {
+  Page(perPage: $perPage) {
+    media(
+      id_in: $ids
+      type: ANIME
+      status: $status
+      sort: POPULARITY_DESC
+    ) {
+      id
+      title {
+        english
+        userPreferred
+        romaji
+      }
+      coverImage { large }
+      averageScore
+      episodes
+      genres
+      status
+      nextAiringEpisode {
+        episode
+        airingAt
+        timeUntilAiring
+      }
     }
   }
 }
@@ -186,17 +222,31 @@ def clean_description(raw: Optional[str]) -> Optional[str]:
 
 def map_media_results(data: dict[str, Any]) -> List[AnimeSearchResult]:
     results = data.get("Page", {}).get("media", [])
-    return [
-        AnimeSearchResult(
-            anilist_id=item["id"],
-            title=extract_preferred_title(item.get("title")),
-            cover_image=item.get("coverImage", {}).get("large"),
-            score=item.get("averageScore"),
-            episodes=item.get("episodes"),
-            genres=item.get("genres", []),
+    output: List[AnimeSearchResult] = []
+    for item in results:
+        next_raw = item.get("nextAiringEpisode")
+        next_airing = (
+            NextAiring(
+                episode=next_raw["episode"],
+                airing_at=next_raw["airingAt"],
+                time_until_airing=next_raw["timeUntilAiring"],
+            )
+            if next_raw and "episode" in next_raw
+            else None
         )
-        for item in results
-    ]
+        output.append(
+            AnimeSearchResult(
+                anilist_id=item["id"],
+                title=extract_preferred_title(item.get("title")),
+                cover_image=item.get("coverImage", {}).get("large"),
+                score=item.get("averageScore"),
+                episodes=item.get("episodes"),
+                genres=item.get("genres", []),
+                status=item.get("status"),
+                next_airing=next_airing,
+            )
+        )
+    return output
 
 
 @router.get("/search", response_model=list[AnimeSearchResult])
@@ -352,3 +402,24 @@ async def seasonal_anime(
     except AniListError as error:
         raise HTTPException(status_code=502, detail="AniList seasonal data unavailable") from error
     return map_media_results(data)
+
+
+@router.get("/airing", response_model=List[AnimeSearchResult])
+async def airing_anime(
+    ids: Optional[List[int]] = Query(default=None),
+    per_page: int = Query(default=30, ge=1, le=50),
+) -> List[AnimeSearchResult]:
+    variables: dict[str, Any] = {
+        "perPage": len(ids) if ids else per_page,
+    }
+    if ids and len(ids) > 0:
+        variables["ids"] = ids
+    else:
+        variables["status"] = "RELEASING"
+
+    try:
+        data = await client.execute(AIRING_QUERY, variables)
+    except AniListError as error:
+        raise HTTPException(status_code=502, detail="AniList airing data unavailable") from error
+    return map_media_results(data)
+

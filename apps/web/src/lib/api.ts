@@ -18,6 +18,12 @@ export type AnimeEntry = {
   updated_at: string;
 };
 
+export type NextAiring = {
+  episode: number;
+  airing_at: number;
+  time_until_airing: number;
+};
+
 export type AnimeSearchResult = {
   anilist_id: number;
   title: string;
@@ -25,6 +31,8 @@ export type AnimeSearchResult = {
   score: number | null;
   episodes: number | null;
   genres: string[];
+  status?: string | null;
+  next_airing?: NextAiring | null;
 };
 
 export type SeasonSelection = {
@@ -72,12 +80,6 @@ export type AnimeTrailer = {
 export type AnimeTag = {
   name: string;
   rank?: number | null;
-};
-
-export type NextAiring = {
-  episode: number;
-  airing_at: number;
-  time_until_airing: number;
 };
 
 export type AnimeRelation = {
@@ -142,6 +144,15 @@ export const api = {
     const params = new URLSearchParams({ season: selection.season, year: String(selection.year) });
     if (genre) params.set("genre", genre);
     return request<AnimeSearchResult[]>(`/api/catalog/seasonal?${params.toString()}`, { signal });
+  },
+  airing: (ids?: number[], perPage = 30, signal?: AbortSignal) => {
+    const params = new URLSearchParams({ per_page: String(perPage) });
+    if (ids && ids.length > 0) {
+      for (const id of ids) {
+        params.append("ids", String(id));
+      }
+    }
+    return request<AnimeSearchResult[]>(`/api/catalog/airing?${params.toString()}`, { signal });
   },
   recommendations: (limit = 10, signal?: AbortSignal) => request<AnimeSearchResult[]>(`/api/recommendations?limit=${limit}`, { signal }),
   details: (query: { id?: number; search?: string }, signal?: AbortSignal) => {
