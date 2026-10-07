@@ -10,11 +10,11 @@ class AnimeAskRequest(BaseModel):
 
 class AnimeRecommendation(BaseModel):
     title: str
-    score: Optional[int] = Field(default=None, ge=1, le=10)
+    score: Optional[float] = Field(default=None, ge=1, le=10)
     reason: str
 
 
 class AnimeAskResponse(BaseModel):
     answer: str
-    score: Optional[int] = Field(default=None, ge=1, le=10)
+    score: Optional[float] = Field(default=None, ge=1, le=10)
     recommendations: List[AnimeRecommendation] = Field(default_factory=list)

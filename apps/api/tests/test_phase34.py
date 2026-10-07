@@ -49,3 +49,12 @@ def test_anime_ask_parses_json_fallback() -> None:
     parsed = anime_ask.parse_llm_response('```json\n{"recommendations": []}\n```')
     assert parsed["recommendations"] == []
     assert "answer" in parsed
+
+
+def test_anime_ask_parses_surrounded_json_and_floats() -> None:
+    raw = 'Hier ist die Antwort:\n```json\n{"answer": "Toll", "score": 8.5, "recommendations": [{"title": "Death Note", "score": 9.5, "reason": "Spannend"}]}\n```\nViel Spass!'
+    parsed = anime_ask.parse_llm_response(raw)
+    response = anime_ask.AnimeAskResponse.model_validate(parsed)
+    assert response.score == 8.5
+    assert len(response.recommendations) == 1
+    assert response.recommendations[0].score == 9.5

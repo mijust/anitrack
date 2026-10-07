@@ -18,25 +18,53 @@ settings = get_settings()
 
 def parse_llm_response(raw: str) -> Dict[str, Any]:
     cleaned = raw.strip()
-    if cleaned.startswith("```"):
-        cleaned = cleaned.removeprefix("```json").removeprefix("```").removesuffix("```").strip()
+
+    # 1. Look for ```json ... ``` code fence
+    if "```json" in cleaned:
+        start_fence = cleaned.find("```json") + len("```json")
+        end_fence = cleaned.find("```", start_fence)
+        if end_fence != -1:
+            try:
+                parsed = json.loads(cleaned[start_fence:end_fence].strip())
+                if isinstance(parsed, dict):
+                    parsed.setdefault("answer", raw)
+                    return parsed
+            except json.JSONDecodeError:
+                pass
+    elif "```" in cleaned:
+        start_fence = cleaned.find("```") + len("```")
+        end_fence = cleaned.find("```", start_fence)
+        if end_fence != -1:
+            try:
+                parsed = json.loads(cleaned[start_fence:end_fence].strip())
+                if isinstance(parsed, dict):
+                    parsed.setdefault("answer", raw)
+                    return parsed
+            except json.JSONDecodeError:
+                pass
+
+    # 2. Direct JSON parse
     try:
         parsed = json.loads(cleaned)
+        if isinstance(parsed, dict):
+            parsed.setdefault("answer", raw)
+            return parsed
     except json.JSONDecodeError:
-        start = cleaned.find("{")
-        end = cleaned.rfind("}")
-        if start != -1 and end != -1 and end > start:
-            try:
-                parsed = json.loads(cleaned[start : end + 1])
-            except json.JSONDecodeError:
-                return {"answer": raw}
-        else:
-            return {"answer": raw}
+        pass
 
-    if not isinstance(parsed, dict):
-        return {"answer": raw}
-    parsed.setdefault("answer", raw)
-    return parsed
+    # 3. Locate outermost curly braces
+    start = cleaned.find("{")
+    end = cleaned.rfind("}")
+    if start != -1 and end != -1 and end > start:
+        try:
+            parsed = json.loads(cleaned[start : end + 1])
+            if isinstance(parsed, dict):
+                parsed.setdefault("answer", raw)
+                return parsed
+        except json.JSONDecodeError:
+            pass
+
+    return {"answer": raw}
 
 
 @router.post("", response_model=AnimeAskResponse)
@@ -44,9 +72,10 @@ async def anime_ask(
     payload: AnimeAskRequest,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
+    current_settings=Depends(get_settings),
 ) -> AnimeAskResponse:
-    if not settings.openrouter_api_key:
-        raise HTTPException(status_code=503, detail="OpenRouter is not configured")
+    if not current_settings.openrouter_api_key:
+        raise HTTPException(status_code=503, detail="OpenRouter ist nicht konfiguriert (OPENROUTER_API_KEY fehlt in .env)")
 
     entries = list((await db.scalars(select(AnimeEntry).where(AnimeEntry.user_id == user.id))).all())
     profile = ", ".join(f"{entry.title} ({entry.user_rating or '-'} / 10)" for entry in entries[:20]) or "Keine gespeicherten Anime"
@@ -59,15 +88,18 @@ async def anime_ask(
         {"role": "user", "content": payload.prompt},
     ]
     client = OpenRouterClient(
-        settings.openrouter_api_url,
-        settings.openrouter_api_key.get_secret_value(),
-        settings.openrouter_model,
+        current_settings.openrouter_api_url,
+        current_settings.openrouter_api_key.get_secret_value(),
+        current_settings.openrouter_model,
     )
     try:
         async with client:
             raw = await client.chat(messages)
     except OpenRouterError as error:
-        raise HTTPException(status_code=502, detail="OpenRouter unavailable") from error
+        raise HTTPException(status_code=502, detail=str(error)) from error
 
     parsed = parse_llm_response(raw)
-    return AnimeAskResponse.model_validate(parsed)
+    try:
+        return AnimeAskResponse.model_validate(parsed)
+    except Exception:
+        return AnimeAskResponse(answer=parsed.get("answer") or raw)

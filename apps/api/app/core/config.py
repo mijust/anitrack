@@ -26,7 +26,7 @@ class Settings(BaseSettings):
     anilist_api_url: str = "https://graphql.anilist.co"
     openrouter_api_url: str = "https://openrouter.ai/api/v1/chat/completions"
     openrouter_api_key: Optional[SecretStr] = None
-    openrouter_model: str = "google/gemma-4-31b-it:free"
+    openrouter_model: str = "google/gemma-4-31b-it:free,nvidia/nemotron-3.5-lightning:free,liquid/lfm-2.5-2.6b:free"
     frontend_url: str = "http://localhost:3000"
 
 

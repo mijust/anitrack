@@ -63,3 +63,18 @@ async def test_openrouter_client_extracts_message(monkeypatch: pytest.MonkeyPatc
         "model": "test-model",
         "messages": [{"role": "user", "content": "Recommend something"}],
     }
+
+
+@pytest.mark.asyncio
+async def test_openrouter_client_supports_fallback_models(monkeypatch: pytest.MonkeyPatch) -> None:
+    FakeAsyncClient.response_payload = {"choices": [{"message": {"content": "Use fallback"}}]}
+    monkeypatch.setattr("httpx.AsyncClient", FakeAsyncClient)
+    client = OpenRouterClient("https://example.test/chat", "test-key", "model-a, model-b")
+
+    result = await client.chat([{"role": "user", "content": "Hello"}])
+
+    assert result == "Use fallback"
+    assert FakeAsyncClient.last_request["json"] == {
+        "models": ["model-a", "model-b"],
+        "messages": [{"role": "user", "content": "Hello"}],
+    }

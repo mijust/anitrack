@@ -47,17 +47,46 @@ class OpenRouterClient:
         await self.close()
 
     async def chat(self, messages: list[dict[str, str]]) -> str:
-        payload: dict[str, Any] = {"model": self.model, "messages": messages}
+        models = [m.strip() for m in self.model.split(",") if m.strip()]
+        if len(models) > 1:
+            payload: dict[str, Any] = {"models": models, "messages": messages}
+        else:
+            payload = {"model": models[0] if models else self.model, "messages": messages}
+
         headers = {"Authorization": f"Bearer {self.api_key}"}
         client = self._get_client()
         try:
             response = await client.post(self.api_url, json=payload, headers=headers)
             response.raise_for_status()
+        except httpx.HTTPStatusError as error:
+            detail = ""
+            try:
+                err_data = error.response.json()
+                if isinstance(err_data, dict):
+                    err_obj = err_data.get("error", {})
+                    if isinstance(err_obj, dict):
+                        detail = err_obj.get("metadata", {}).get("raw") or err_obj.get("message")
+                    elif isinstance(err_obj, str):
+                        detail = err_obj
+            except Exception:
+                detail = error.response.text
+            msg = f"OpenRouter API Fehler ({error.response.status_code}): {detail or error}"
+            logger.error(msg)
+            raise OpenRouterError(msg) from error
         except httpx.HTTPError as error:
-            raise OpenRouterError(f"OpenRouter request failed: {error}") from error
+            msg = f"OpenRouter Verbindungsfehler: {error}"
+            logger.error(msg)
+            raise OpenRouterError(msg) from error
 
         try:
-            return response.json()["choices"][0]["message"]["content"]
+            data = response.json()
+            choice = data["choices"][0]["message"]
+            content = choice.get("content")
+            if content:
+                return content
+            if choice.get("reasoning"):
+                return choice["reasoning"]
+            raise OpenRouterError("OpenRouter gab eine leere Antwort zurück")
         except (KeyError, IndexError, TypeError) as error:
-            raise OpenRouterError("OpenRouter returned an invalid response") from error
+            raise OpenRouterError("OpenRouter gab eine ungültige Antwortstruktur zurück") from error
 

@@ -35,7 +35,7 @@ Sowohl Docker Compose, das FastAPI-Backend (`apps/api`) als auch das Next.js Fro
 | Variable | Erforderlich? | Woher bekommen? / Zweck | Standardwert (Entwicklung) |
 | :--- | :---: | :--- | :--- |
 | **`OPENROUTER_API_KEY`** | **Für KI** | Erstelle einen kostenlosen API-Key auf [openrouter.ai/keys](https://openrouter.ai/keys). Wird für den KI-Assistenten *Anime Ask* benötigt. | *(leer / optional)* |
-| **`OPENROUTER_MODEL`** | Optional | Das gewünschte Sprachmodell auf OpenRouter. Standard ist ein kostenloses Modell. | `google/gemma-4-31b-it:free` |
+| **`OPENROUTER_MODEL`** | Optional | Sprachmodell(e) auf OpenRouter. Kommagetrennte Liste für automatische Fallbacks bei Provider-Ausfällen oder Rate-Limits. | `google/gemma-4-31b-it:free,nvidia/nemotron-3.5-lightning:free,liquid/lfm-2.5-2.6b:free` |
 | **`POSTGRES_USER`** | **Ja (bei Docker)** | Benutzername für die lokale PostgreSQL-Datenbank (Docker). | `anime` |
 | **`POSTGRES_PASSWORD`** | **Ja (bei Docker)** | Passwort für den PostgreSQL-Benutzer (Docker & Backend). | `securepassword` |
 | **`POSTGRES_DB`** | **Ja (bei Docker)** | Name der Datenbank. | `anime` |
