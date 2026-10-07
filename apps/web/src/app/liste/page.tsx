@@ -1,0 +1,228 @@
+"use client";
+
+import { useMemo, useState } from "react";
+import { Poster } from "@/components/anime-card";
+import { useCommandSearch } from "@/components/command-search";
+import { ListIcon, MinusIcon, PlusIcon, SearchIcon, TrashIcon } from "@/components/icons";
+import { Button, EmptyState } from "@/components/ui";
+import { useWatchlist } from "@/components/watchlist-provider";
+import type { AnimeEntry } from "@/lib/api";
+import { cn, EntryStatus, STATUS_META, STATUS_ORDER } from "@/lib/utils";
+
+type Filter = "all" | EntryStatus;
+
+export default function ListPage() {
+  const { entries, ready, loadError } = useWatchlist();
+  const { openSearch } = useCommandSearch();
+  const [filter, setFilter] = useState<Filter>("all");
+  const [query, setQuery] = useState("");
+
+  const counts = useMemo(() => {
+    const result: Record<Filter, number> = { all: entries.length, watching: 0, planned: 0, paused: 0, completed: 0, dropped: 0 };
+    for (const entry of entries) result[entry.status] += 1;
+    return result;
+  }, [entries]);
+
+  const visible = entries.filter(
+    (entry) =>
+      (filter === "all" || entry.status === filter) &&
+      entry.title.toLowerCase().includes(query.trim().toLowerCase()),
+  );
+
+  const tabs: { value: Filter; label: string }[] = [
+    { value: "all", label: "Alle" },
+    ...STATUS_ORDER.map((status) => ({ value: status, label: STATUS_META[status].label })),
+  ];
+
+  return (
+    <div className="mx-auto max-w-4xl">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Meine Liste</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {entries.length} {entries.length === 1 ? "Anime" : "Anime"} gemerkt
+          </p>
+        </div>
+        <label className="relative block sm:w-64">
+          <span className="sr-only">Liste filtern</span>
+          <SearchIcon width={16} height={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+          <input
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="In Liste filtern"
+            className="h-9 w-full rounded-full border border-border bg-muted/60 pl-9 pr-3 text-sm outline-none transition-colors placeholder:text-muted-foreground focus:border-border-strong"
+          />
+        </label>
+      </div>
+
+      <div role="tablist" aria-label="Status" className="no-scrollbar -mx-4 mt-6 flex gap-1.5 overflow-x-auto px-4 sm:mx-0 sm:px-0">
+        {tabs.map((tab) => (
+          <button
+            key={tab.value}
+            type="button"
+            role="tab"
+            aria-selected={filter === tab.value}
+            onClick={() => setFilter(tab.value)}
+            className={cn(
+              "inline-flex h-8 shrink-0 items-center gap-2 rounded-full border px-3 text-sm transition-colors",
+              filter === tab.value
+                ? "border-foreground bg-foreground text-background"
+                : "border-border text-muted-foreground hover:border-border-strong hover:text-foreground",
+            )}
+          >
+            {tab.value !== "all" && <span className={cn("size-1.5 rounded-full", STATUS_META[tab.value].dot)} />}
+            {tab.label}
+            <span className="tabular-nums opacity-60">{counts[tab.value]}</span>
+          </button>
+        ))}
+      </div>
+
+      <div className="mt-6">
+        {!ready ? (
+          <div className="space-y-2">
+            {Array.from({ length: 4 }, (_, index) => (
+              <div key={index} className="h-24 animate-pulse rounded-2xl bg-muted" />
+            ))}
+          </div>
+        ) : loadError ? (
+          <p className="rounded-2xl border border-border p-6 text-center text-sm text-danger">{loadError}</p>
+        ) : entries.length === 0 ? (
+          <EmptyState
+            icon={<ListIcon />}
+            title="Deine Liste ist noch leer"
+            description="Such nach einem Anime und merke ihn dir mit einem Klick."
+            action={<Button onClick={() => openSearch()}>Anime suchen</Button>}
+          />
+        ) : visible.length === 0 ? (
+          <EmptyState icon={<SearchIcon />} title="Keine Treffer" description="Für diesen Filter gibt es keine Einträge." />
+        ) : (
+          <ul className="space-y-2">
+            {visible.map((entry) => (
+              <EntryRow key={entry.id} entry={entry} />
+            ))}
+          </ul>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function EntryRow({ entry }: { entry: AnimeEntry }) {
+  const { update, remove } = useWatchlist();
+
+  return (
+    <li className="animate-enter group flex gap-4 rounded-2xl border border-border bg-card p-3 transition-colors hover:border-border-strong">
+      <Poster src={entry.cover_image} alt={entry.title} sizes="56px" className="h-[84px] w-14 shrink-0 rounded-lg" />
+
+      <div className="flex min-w-0 flex-1 flex-col justify-between gap-3 sm:flex-row sm:items-center">
+        <div className="min-w-0">
+          <p className="truncate font-medium">{entry.title}</p>
+          <div className="mt-1.5">
+            <StatusSelect value={entry.status} onChange={(status) => void update(entry, { status })} />
+          </div>
+        </div>
+
+        <div className="flex items-center gap-4 sm:gap-6">
+          <EpisodeStepper
+            value={entry.episodes_watched}
+            onChange={(episodes_watched) => void update(entry, { episodes_watched })}
+          />
+          <RatingInput value={entry.user_rating} onChange={(user_rating) => void update(entry, { user_rating })} />
+          <button
+            type="button"
+            onClick={() => void remove(entry)}
+            aria-label={`${entry.title} entfernen`}
+            className="ml-auto grid size-8 place-items-center rounded-full text-muted-foreground transition hover:bg-danger/10 hover:text-danger sm:ml-0 sm:opacity-0 sm:focus-visible:opacity-100 sm:group-hover:opacity-100"
+          >
+            <TrashIcon width={16} height={16} />
+          </button>
+        </div>
+      </div>
+    </li>
+  );
+}
+
+function StatusSelect({ value, onChange }: { value: EntryStatus; onChange: (status: EntryStatus) => void }) {
+  return (
+    <label className="relative inline-flex items-center">
+      <span className="sr-only">Status</span>
+      <span className={cn("pointer-events-none absolute left-2.5 size-1.5 rounded-full", STATUS_META[value].dot)} />
+      <select
+        value={value}
+        onChange={(event) => onChange(event.target.value as EntryStatus)}
+        className="h-7 cursor-pointer appearance-none rounded-full border border-border bg-muted/60 pl-6 pr-3 text-xs font-medium outline-none transition-colors hover:border-border-strong"
+      >
+        {STATUS_ORDER.map((status) => (
+          <option key={status} value={status}>
+            {STATUS_META[status].label}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
+}
+
+function EpisodeStepper({ value, onChange }: { value: number; onChange: (value: number) => void }) {
+  return (
+    <div className="flex items-center gap-1" aria-label="Gesehene Folgen">
+      <button
+        type="button"
+        onClick={() => onChange(Math.max(0, value - 1))}
+        disabled={value === 0}
+        aria-label="Eine Folge weniger"
+        className="grid size-7 place-items-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-30"
+      >
+        <MinusIcon width={14} height={14} />
+      </button>
+      <div className="min-w-12 text-center">
+        <p className="text-sm font-medium tabular-nums leading-none">{value}</p>
+        <p className="mt-0.5 text-[10px] uppercase tracking-wide text-muted-foreground">Folgen</p>
+      </div>
+      <button
+        type="button"
+        onClick={() => onChange(value + 1)}
+        aria-label="Eine Folge mehr"
+        className="grid size-7 place-items-center rounded-full bg-muted text-foreground transition hover:bg-accent hover:text-accent-foreground active:scale-95"
+      >
+        <PlusIcon width={14} height={14} />
+      </button>
+    </div>
+  );
+}
+
+/** 10er-Bewertung als kompakte Balkenleiste mit Hover-Vorschau. */
+function RatingInput({ value, onChange }: { value: number | null; onChange: (value: number) => void }) {
+  const [hover, setHover] = useState<number | null>(null);
+  const shown = hover ?? value ?? 0;
+
+  return (
+    <div className="flex flex-col items-center gap-1">
+      <div role="radiogroup" aria-label="Bewertung" className="flex h-5 items-end gap-0.5" onMouseLeave={() => setHover(null)}>
+        {Array.from({ length: 10 }, (_, index) => {
+          const score = index + 1;
+          return (
+            <button
+              key={score}
+              type="button"
+              role="radio"
+              aria-checked={value === score}
+              aria-label={`${score} von 10`}
+              onMouseEnter={() => setHover(score)}
+              onFocus={() => setHover(score)}
+              onBlur={() => setHover(null)}
+              onClick={() => onChange(score)}
+              style={{ height: `${40 + score * 6}%` }}
+              className={cn(
+                "w-1.5 rounded-full transition-colors",
+                score <= shown ? "bg-accent" : "bg-foreground/15 hover:bg-foreground/30",
+              )}
+            />
+          );
+        })}
+      </div>
+      <p className="text-[10px] uppercase tracking-wide text-muted-foreground tabular-nums">
+        {shown ? `${shown}/10` : "Bewerten"}
+      </p>
+    </div>
+  );
+}

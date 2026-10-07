@@ -1,121 +1,222 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { AnimeAsk } from "@/components/anime-ask";
-import { AnimeSearch } from "@/components/anime-search";
-import { RecommendationsSection } from "@/components/recommendations-section";
-import { SeasonalSection } from "@/components/seasonal-section";
-import { WatchlistSection } from "@/components/watchlist-section";
-import { api, AnimeEntry, AnimeSearchResult } from "@/lib/api";
+import Link from "next/link";
+import { useEffect, useState, useSyncExternalStore } from "react";
+import { AnimeCard, AnimeCardSkeleton, Poster } from "@/components/anime-card";
+import { SearchTrigger } from "@/components/command-search";
+import { ChevronLeftIcon, ChevronRightIcon, PlusIcon, SparklesIcon } from "@/components/icons";
+import { EmptyState, Rail, SectionHeader } from "@/components/ui";
+import { useWatchlist } from "@/components/watchlist-provider";
+import { api, AnimeSearchResult } from "@/lib/api";
+import { currentSeason, errorMessage, isAbortError, parseSeasonKey, seasonKey, seasonLabel, shiftSeason, STATUS_META } from "@/lib/utils";
 
-type StatusType = "all" | "watching" | "completed" | "planned" | "paused" | "dropped";
+type Loaded<T> = { key: string; data: T; error: string | null };
 
-export default function Home() {
-  const [entries, setEntries] = useState<AnimeEntry[]>([]);
-  const [statusFilter, setStatusFilter] = useState<StatusType>("all");
-  const [message, setMessage] = useState("");
-  const [isError, setIsError] = useState(false);
+export default function DiscoverPage() {
+  return (
+    <div className="space-y-14">
+      <Hero />
+      <ContinueWatching />
+      <ForYou />
+      <SeasonGrid />
+    </div>
+  );
+}
 
-  function notify(text: string, error = false) {
-    setMessage(text);
-    setIsError(error);
-  }
-
-  useEffect(() => {
-    const controller = new AbortController();
-    void api
-      .entries(statusFilter === "all" ? undefined : statusFilter, controller.signal)
-      .then(setEntries)
-      .catch((err) => {
-        if (err instanceof DOMException && err.name === "AbortError") return;
-        notify("Watchlist konnte nicht geladen werden.", true);
-      });
-    return () => controller.abort();
-  }, [statusFilter]);
-
-  async function handleAddToList(anime: AnimeSearchResult) {
-    try {
-      await api.createEntry(anime);
-      notify(`${anime.title} wurde zur Liste hinzugefügt.`);
-      const updated = await api.entries(statusFilter === "all" ? undefined : statusFilter);
-      setEntries(updated);
-    } catch (error) {
-      notify(error instanceof Error ? error.message : "Anime konnte nicht gespeichert werden.", true);
-    }
-  }
-
-  async function handleMarkCompleted(entry: AnimeEntry) {
-    try {
-      const updated = await api.updateEntry(entry.id, { status: "completed" });
-      setEntries((current) => current.map((item) => (item.id === updated.id ? updated : item)));
-      notify(`${entry.title} als abgeschlossen markiert.`);
-    } catch (error) {
-      notify(error instanceof Error ? error.message : "Eintrag konnte nicht aktualisiert werden.", true);
-    }
-  }
+function Hero() {
+  const { entries } = useWatchlist();
+  const count = (status: keyof typeof STATUS_META) => entries.filter((entry) => entry.status === status).length;
+  const stats = [
+    { label: STATUS_META.watching.label, value: count("watching"), dot: STATUS_META.watching.dot },
+    { label: STATUS_META.planned.label, value: count("planned"), dot: STATUS_META.planned.dot },
+    { label: STATUS_META.completed.label, value: count("completed"), dot: STATUS_META.completed.dot },
+  ];
 
   return (
-    <main className="mx-auto min-h-screen w-full max-w-6xl px-6 py-10 sm:px-10">
-      <header className="border-b border-secondary/50 pb-10">
-        <p className="text-sm uppercase tracking-[0.2em] text-accent">Anime Tracker</p>
-        <h1 className="mt-3 text-4xl font-semibold tracking-tight text-text">Deine Watchlist</h1>
-        <p className="mt-3 max-w-xl text-base text-text-muted">
-          Suche Anime, verwalte deinen Watchlist-Status, entdecke saisonale Trends und erhalte KI-Empfehlungen direkt in deinem Heimnetzwerk.
-        </p>
-      </header>
-
-      {message && (
-        <div
-          role="alert"
-          className={`mt-6 flex items-center justify-between rounded-md border px-4 py-3 text-sm ${
-            isError
-              ? "border-red-500/50 bg-red-950/20 text-red-300"
-              : "border-secondary bg-surface text-accent"
-          }`}
-        >
-          <span>{message}</span>
-          <button
-            type="button"
-            onClick={() => setMessage("")}
-            className="ml-4 text-xs opacity-75 hover:opacity-100"
+    <section className="animate-enter mx-auto max-w-2xl pt-4 text-center sm:pt-8">
+      <h1 className="text-balance text-3xl font-semibold tracking-tight sm:text-5xl">
+        Was schaust du als <span className="text-accent">Nächstes</span>?
+      </h1>
+      <p className="mx-auto mt-3 max-w-md text-pretty text-muted-foreground">
+        Suchen, merken, Fortschritt tracken – und dir von der KI etwas Neues empfehlen lassen.
+      </p>
+      <SearchTrigger large className="mx-auto mt-8 max-w-xl shadow-lg shadow-black/5" />
+      <div className="mt-6 flex flex-wrap items-center justify-center gap-2">
+        {stats.map((stat) => (
+          <Link
+            key={stat.label}
+            href="/liste"
+            className="inline-flex items-center gap-2 rounded-full border border-border px-3 py-1 text-xs text-muted-foreground transition-colors hover:border-border-strong hover:text-foreground"
           >
-            ✕
-          </button>
-        </div>
-      )}
+            <span className={`size-1.5 rounded-full ${stat.dot}`} />
+            <span className="font-medium tabular-nums text-foreground">{stat.value}</span>
+            {stat.label}
+          </Link>
+        ))}
+      </div>
+    </section>
+  );
+}
 
-      {/* Anime Suche */}
-      <section className="py-10">
-        <AnimeSearch
-          onAddToList={handleAddToList}
-          onError={(err) => notify(err, true)}
+function ContinueWatching() {
+  const { entries, update } = useWatchlist();
+  const watching = entries.filter((entry) => entry.status === "watching");
+  if (watching.length === 0) return null;
+
+  return (
+    <section>
+      <SectionHeader
+        title="Weiterschauen"
+        description="Ein Klick auf + zählt die nächste Folge."
+        action={
+          <Link href="/liste" className="text-sm text-muted-foreground hover:text-foreground">
+            Alle ansehen
+          </Link>
+        }
+      />
+      <Rail label="Weiterschauen">
+        {watching.map((entry) => (
+          <div
+            key={entry.id}
+            className="flex w-72 shrink-0 snap-start items-center gap-3 rounded-2xl border border-border bg-card p-2.5 pr-3"
+          >
+            <Poster src={entry.cover_image} alt={entry.title} sizes="48px" className="h-[72px] w-12 shrink-0 rounded-lg" />
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-medium">{entry.title}</p>
+              <p className="mt-0.5 text-xs tabular-nums text-muted-foreground">
+                {entry.episodes_watched > 0 ? `Folge ${entry.episodes_watched} gesehen` : "Noch nicht begonnen"}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => void update(entry, { episodes_watched: entry.episodes_watched + 1 })}
+              aria-label={`Folge ${entry.episodes_watched + 1} von ${entry.title} als gesehen markieren`}
+              className="grid size-9 shrink-0 place-items-center rounded-full bg-muted transition hover:bg-accent hover:text-accent-foreground active:scale-95"
+            >
+              <PlusIcon width={16} height={16} />
+            </button>
+          </div>
+        ))}
+      </Rail>
+    </section>
+  );
+}
+
+function ForYou() {
+  const { entries, ready } = useWatchlist();
+  const key = String(entries.length);
+  const [state, setState] = useState<Loaded<AnimeSearchResult[]> | null>(null);
+
+  useEffect(() => {
+    if (!ready || entries.length === 0) return;
+    const controller = new AbortController();
+    api
+      .recommendations(12, controller.signal)
+      .then((data) => setState({ key, data, error: null }))
+      .catch((error) => {
+        if (!isAbortError(error)) setState({ key, data: [], error: errorMessage(error, "Empfehlungen nicht verfügbar.") });
+      });
+    return () => controller.abort();
+  }, [key, ready, entries.length]);
+
+  if (ready && entries.length === 0) {
+    return (
+      <section>
+        <SectionHeader title="Für dich" />
+        <EmptyState
+          icon={<SparklesIcon />}
+          title="Noch keine Empfehlungen"
+          description="Merke dir ein paar Anime – dann schlagen wir dir hier passende Titel vor."
         />
       </section>
+    );
+  }
 
-      {/* Saisonale Übersicht */}
-      <SeasonalSection
-        onAddToList={handleAddToList}
-        onError={(err) => notify(err, true)}
+  const loading = !state || (state.key !== key && state.data.length === 0);
+  if (state?.error && state.data.length === 0) return null;
+
+  return (
+    <section>
+      <SectionHeader title="Für dich" description="Ähnlich zu dem, was auf deiner Liste steht." />
+      <Rail label="Empfehlungen">
+        {loading
+          ? Array.from({ length: 7 }, (_, index) => <AnimeCardSkeleton key={index} className="w-36 shrink-0 sm:w-44" />)
+          : state.data.map((anime) => (
+              <AnimeCard key={anime.anilist_id} anime={anime} className="w-36 shrink-0 snap-start sm:w-44" />
+            ))}
+      </Rail>
+    </section>
+  );
+}
+
+const noopSubscribe = () => () => {};
+
+/** Aktuelle Saison nur im Browser bestimmen (kein Date während des Prerenderings). */
+function useCurrentSeasonKey(): string | null {
+  return useSyncExternalStore(noopSubscribe, () => seasonKey(currentSeason()), () => null);
+}
+
+function SeasonGrid() {
+  const nowKey = useCurrentSeasonKey();
+  const [offset, setOffset] = useState(0);
+  const selection = nowKey ? shiftSeason(parseSeasonKey(nowKey), offset) : null;
+  const key = selection ? seasonKey(selection) : null;
+  const [state, setState] = useState<Loaded<AnimeSearchResult[]> | null>(null);
+
+  useEffect(() => {
+    if (!key) return;
+    const controller = new AbortController();
+    api
+      .seasonal(parseSeasonKey(key), undefined, controller.signal)
+      .then((data) => setState({ key, data, error: null }))
+      .catch((error) => {
+        if (!isAbortError(error)) setState({ key, data: [], error: errorMessage(error, "Saison konnte nicht geladen werden.") });
+      });
+    return () => controller.abort();
+  }, [key]);
+
+  const loading = !state || state.key !== key;
+
+  return (
+    <section>
+      <SectionHeader
+        title={offset === 0 ? "Diese Saison" : selection ? seasonLabel(selection) : "Saison"}
+        description={offset === 0 && selection ? `Die beliebtesten Anime im ${seasonLabel(selection)}.` : "Die beliebtesten Anime dieser Saison."}
+        action={
+          <div className="flex items-center gap-1 rounded-full border border-border p-1">
+            <button
+              type="button"
+              onClick={() => setOffset((value) => value - 1)}
+              aria-label="Vorherige Saison"
+              className="grid size-7 place-items-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
+            >
+              <ChevronLeftIcon width={16} height={16} />
+            </button>
+            <span className="min-w-28 text-center text-sm font-medium tabular-nums">
+              {selection ? seasonLabel(selection) : "…"}
+            </span>
+            <button
+              type="button"
+              onClick={() => setOffset((value) => value + 1)}
+              disabled={offset >= 1}
+              aria-label="Nächste Saison"
+              className="grid size-7 place-items-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-30"
+            >
+              <ChevronRightIcon width={16} height={16} />
+            </button>
+          </div>
+        }
       />
 
-      {/* Personalisierte Empfehlungen */}
-      <RecommendationsSection
-        onAddToList={handleAddToList}
-        listCount={entries.length}
-      />
-
-      {/* KI-Assistent Anime Ask */}
-      <AnimeAsk
-        onError={(err) => notify(err, true)}
-      />
-
-      {/* Persönliche Watchlist */}
-      <WatchlistSection
-        entries={entries}
-        statusFilter={statusFilter}
-        onStatusFilterChange={setStatusFilter}
-        onMarkCompleted={handleMarkCompleted}
-      />
-    </main>
+      {state?.error && !loading ? (
+        <p className="rounded-2xl border border-border p-6 text-center text-sm text-danger">{state.error}</p>
+      ) : (
+        <div className="grid grid-cols-2 gap-x-4 gap-y-7 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
+          {loading
+            ? Array.from({ length: 12 }, (_, index) => <AnimeCardSkeleton key={index} />)
+            : state.data.map((anime) => <AnimeCard key={anime.anilist_id} anime={anime} className="animate-enter" />)}
+        </div>
+      )}
+    </section>
   );
 }

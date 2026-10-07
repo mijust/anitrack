@@ -69,15 +69,20 @@ export const api = {
     }),
   entries: (status?: string, signal?: AbortSignal) =>
     request<AnimeEntry[]>(status ? `/api/anime-entries?status=${status}` : "/api/anime-entries", { signal }),
-  createEntry: (anime: AnimeSearchResult) =>
+  createEntry: (
+    anime: Pick<AnimeSearchResult, "anilist_id" | "title" | "cover_image">,
+    extra?: Partial<Pick<AnimeEntry, "status" | "user_rating" | "episodes_watched" | "notes">>,
+  ) =>
     request<AnimeEntry>("/api/anime-entries", {
       method: "POST",
       body: JSON.stringify({
         anilist_id: anime.anilist_id,
         title: anime.title,
         cover_image: anime.cover_image,
+        ...extra,
       }),
     }),
   updateEntry: (id: number, update: Partial<Pick<AnimeEntry, "status" | "user_rating" | "episodes_watched" | "notes">>) =>
     request<AnimeEntry>(`/api/anime-entries/${id}`, { method: "PATCH", body: JSON.stringify(update) }),
+  deleteEntry: (id: number) => request<void>(`/api/anime-entries/${id}`, { method: "DELETE" }),
 };

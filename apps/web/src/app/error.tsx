@@ -2,11 +2,17 @@
 
 export default function Error({ reset }: { error: Error & { digest?: string }; reset: () => void }) {
   return (
-    <main className="mx-auto flex min-h-screen w-full max-w-2xl flex-col justify-center px-6 py-10 text-center">
-      <p className="text-sm uppercase tracking-[0.2em] text-accent">Anime Tracker</p>
-      <h1 className="mt-4 text-3xl font-semibold text-text">Diese Ansicht konnte nicht geladen werden.</h1>
-      <p className="mt-3 text-text-muted">Prüfe die Verbindung zur API und versuche es erneut.</p>
-      <button type="button" onClick={() => reset()} className="mx-auto mt-6 rounded-md bg-primary px-5 py-3 font-semibold text-background hover:bg-primary-hover">Erneut versuchen</button>
-    </main>
+    <div className="mx-auto flex max-w-md flex-col items-center py-24 text-center">
+      <p className="text-sm font-medium text-accent">Etwas ist schiefgelaufen</p>
+      <h1 className="mt-2 text-2xl font-semibold tracking-tight">Diese Ansicht konnte nicht geladen werden.</h1>
+      <p className="mt-2 text-sm text-muted-foreground">Prüfe, ob die API läuft, und versuche es erneut.</p>
+      <button
+        type="button"
+        onClick={() => reset()}
+        className="mt-6 inline-flex h-9 items-center rounded-full bg-foreground px-4 text-sm font-medium text-background hover:opacity-90"
+      >
+        Erneut versuchen
+      </button>
+    </div>
   );
 }
