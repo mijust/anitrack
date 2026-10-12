@@ -48,6 +48,23 @@ class AnimeRelation(BaseModel):
     cover_image: Optional[str] = None
 
 
+class StreamingProvider(BaseModel):
+    provider_id: Optional[int] = None
+    name: str
+    logo_url: Optional[str] = None
+
+
+class StreamingAvailability(BaseModel):
+    source: str = "werstreamt.es"
+    source_logo_url: str = "https://www.werstreamt.es/favicon.ico"
+    title: str
+    link_url: str
+    filter_url: str
+    widget_url: str
+    providers: List[StreamingProvider] = Field(default_factory=list)
+    provider_lookup_available: bool = False
+
+
 class AnimeDetails(BaseModel):
     anilist_id: int
     title: str
@@ -75,4 +92,3 @@ class AnimeDetails(BaseModel):
     source: Optional[str] = None
     next_airing: Optional[NextAiring] = None
     relations: List[AnimeRelation] = Field(default_factory=list)
-

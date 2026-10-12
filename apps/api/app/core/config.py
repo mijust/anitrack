@@ -24,6 +24,7 @@ class Settings(BaseSettings):
     environment: str = "development"
     database_url: str = "postgresql+asyncpg://anime:securepassword@localhost:5432/anime"
     anilist_api_url: str = "https://graphql.anilist.co"
+    werstreamt_base_url: str = "https://www.werstreamt.es"
     openrouter_api_url: str = "https://openrouter.ai/api/v1/chat/completions"
     openrouter_api_key: Optional[SecretStr] = None
     openrouter_model: str = "google/gemma-4-31b-it:free,nvidia/nemotron-3.5-lightning:free,liquid/lfm-2.5-2.6b:free"

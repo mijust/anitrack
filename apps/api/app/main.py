@@ -17,6 +17,7 @@ async def lifespan(_: FastAPI):
     logger.info("api_started", environment=settings.environment)
     yield
     await catalog.client.close()
+    await catalog.werstreamt_client.close()
     await recommendations.service.client.close()
     await engine.dispose()
 

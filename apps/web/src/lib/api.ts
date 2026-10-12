@@ -93,6 +93,23 @@ export type AnimeRelation = {
   cover_image?: string | null;
 };
 
+export type StreamingProvider = {
+  provider_id?: number | null;
+  name: string;
+  logo_url?: string | null;
+};
+
+export type StreamingAvailability = {
+  source: string;
+  source_logo_url: string;
+  title: string;
+  link_url: string;
+  filter_url: string;
+  widget_url: string;
+  providers: StreamingProvider[];
+  provider_lookup_available: boolean;
+};
+
 export type AnimeDetails = {
   anilist_id: number;
   title: string;
@@ -161,6 +178,8 @@ export const api = {
     if (query.search) params.set("search", query.search);
     return request<AnimeDetails>(`/api/catalog/details?${params.toString()}`, { signal });
   },
+  streaming: (title: string, signal?: AbortSignal) =>
+    request<StreamingAvailability>(`/api/catalog/streaming?title=${encodeURIComponent(title)}`, { signal }),
   topics: (signal?: AbortSignal) => request<{ topics: TopicItem[] }>("/api/anime-ask/topics", { signal }),
   ask: (
     mode: "evaluate" | "recommend",

@@ -2,6 +2,7 @@ import pytest
 
 from app.services.anilist import AniListClient
 from app.services.openrouter import OpenRouterClient
+from app.services.werstreamt import WerStreamtClient
 
 
 class FakeResponse:
@@ -29,6 +30,10 @@ class FakeAsyncClient:
         return None
 
     async def post(self, url: str, **kwargs: object) -> FakeResponse:
+        type(self).last_request = {"url": url, **kwargs}
+        return FakeResponse(self.response_payload)
+
+    async def get(self, url: str, **kwargs: object) -> FakeResponse:
         type(self).last_request = {"url": url, **kwargs}
         return FakeResponse(self.response_payload)
 
@@ -78,3 +83,17 @@ async def test_openrouter_client_supports_fallback_models(monkeypatch: pytest.Mo
         "models": ["model-a", "model-b"],
         "messages": [{"role": "user", "content": "Hello"}],
     }
+
+
+@pytest.mark.asyncio
+async def test_werstreamt_client_builds_widget_and_loads_providers(monkeypatch: pytest.MonkeyPatch) -> None:
+    FakeAsyncClient.response_payload = [{"id": 1, "name": "Netflix", "logo": "https://example.test/netflix.svg"}]
+    monkeypatch.setattr("httpx.AsyncClient", FakeAsyncClient)
+    client = WerStreamtClient("https://www.werstreamt.es")
+
+    providers = await client.fetch_providers()
+
+    assert providers == [{"id": 1, "name": "Netflix", "logo": "https://example.test/netflix.svg"}]
+    assert FakeAsyncClient.last_request["url"] == "https://www.werstreamt.es/widgets/filter/providers/?v=2"
+    assert client.build_filter_url("One Piece") == "https://www.werstreamt.es/filme-serien/?q=One+Piece"
+    assert "widgets/filter/embed/" in client.build_widget_url("One Piece")

@@ -16,7 +16,7 @@ import {
   XIcon,
 } from "@/components/icons";
 import { useWatchlist } from "@/components/watchlist-provider";
-import { api, AnimeDetails } from "@/lib/api";
+import { api, AnimeDetails, StreamingAvailability } from "@/lib/api";
 import { extractSeasonOrder, getSeasonLabel, normalizeFranchiseTitle } from "@/lib/grouping";
 import { cn, errorMessage, formatAiringDateTime, formatCountdown, formatScore, STATUS_META } from "@/lib/utils";
 
@@ -136,6 +136,9 @@ function AnimeDetailModal({
   const { getEntry, addToWatchlist, markWatching, requestRating, dismiss, addAllToWatchlist } = useWatchlist();
   const [expandedDesc, setExpandedDesc] = useState(false);
   const [showVideoTrailer, setShowVideoTrailer] = useState(false);
+  const [streaming, setStreaming] = useState<StreamingAvailability | null>(null);
+  const [streamingLoading, setStreamingLoading] = useState(false);
+  const [streamingError, setStreamingError] = useState<string | null>(null);
 
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
@@ -144,6 +147,33 @@ function AnimeDetailModal({
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [onClose]);
+
+  useEffect(() => {
+    const lookupTitle = details?.title || target.title;
+    if (!lookupTitle) {
+      setStreaming(null);
+      setStreamingError(null);
+      setStreamingLoading(false);
+      return;
+    }
+    const controller = new AbortController();
+    setStreamingLoading(true);
+    setStreamingError(null);
+    api
+      .streaming(lookupTitle, controller.signal)
+      .then((data) => {
+        setStreaming(data);
+      })
+      .catch((err) => {
+        if (err?.name === "AbortError") return;
+        setStreaming(null);
+        setStreamingError(errorMessage(err, "WerStreamt.es-Daten konnten nicht geladen werden."));
+      })
+      .finally(() => {
+        setStreamingLoading(false);
+      });
+    return () => controller.abort();
+  }, [details?.title, target.title]);
 
   const anilistId = details?.anilist_id ?? target.anilist_id;
   const entry = anilistId ? getEntry(anilistId) : undefined;
@@ -713,6 +743,62 @@ function AnimeDetailModal({
                         </div>
                       ) : null}
                     </dl>
+                  </section>
+
+                  <section className="space-y-2 pt-2">
+                    <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                      Streaming (WerStreamt.es)
+                    </h2>
+                    <div className="rounded-2xl border border-border/80 bg-card/60 p-4 space-y-3">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div className="inline-flex items-center gap-2 rounded-full border border-[#2f6fb9]/30 bg-[#2f6fb9]/10 px-3 py-1 text-xs font-semibold text-[#9ecbff]">
+                          <span className="grid size-5 place-items-center rounded-full bg-[#2f6fb9] text-[10px] font-bold text-white">
+                            W
+                          </span>
+                          WerStreamt.es
+                        </div>
+                        {streaming?.link_url && (
+                          <a
+                            href={streaming.link_url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex items-center rounded-full border border-border px-3 py-1 text-xs font-medium text-foreground transition hover:bg-muted"
+                          >
+                            Zur Verfügbarkeit
+                          </a>
+                        )}
+                      </div>
+
+                      {streamingLoading ? (
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                          <SpinnerIcon width={14} height={14} />
+                          Lade Streaming-Informationen …
+                        </div>
+                      ) : streamingError ? (
+                        <p className="text-xs text-rose-400">{streamingError}</p>
+                      ) : streaming?.widget_url ? (
+                        <div className="space-y-2">
+                          <p className="text-xs text-muted-foreground">
+                            Flatrate, Leihen und Kaufen direkt im offiziellen WerStreamt.es-Widget.
+                          </p>
+                          <iframe
+                            src={streaming.widget_url}
+                            title={`WerStreamt.es Verfügbarkeit für ${displayTitle}`}
+                            loading="lazy"
+                            className="h-[180px] w-full rounded-xl border border-border bg-muted/20"
+                          />
+                          {streaming.provider_lookup_available && streaming.providers.length > 0 && (
+                            <p className="text-[11px] text-muted-foreground">
+                              {streaming.providers.length} Anbieter in der WerStreamt.es-Providerliste erkannt.
+                            </p>
+                          )}
+                        </div>
+                      ) : (
+                        <p className="text-xs text-muted-foreground">
+                          Keine Streaming-Daten verfügbar.
+                        </p>
+                      )}
+                    </div>
                   </section>
                 </>
               )}

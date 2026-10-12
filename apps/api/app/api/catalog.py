@@ -8,16 +8,20 @@ from app.schemas.catalog import (
     AnimeDetails,
     AnimeRelation,
     AnimeSearchResult,
+    StreamingAvailability,
+    StreamingProvider,
     AnimeStudio,
     AnimeTag,
     AnimeTrailer,
     NextAiring,
 )
 from app.services.anilist import AniListClient, AniListError, extract_preferred_title
+from app.services.werstreamt import WerStreamtClient
 
 router = APIRouter(prefix="/api/catalog", tags=["catalog"])
 settings = get_settings()
 client = AniListClient(settings.anilist_api_url)
+werstreamt_client = WerStreamtClient(settings.werstreamt_base_url)
 
 SEARCH_QUERY = """
 query SearchAnime($search: String!) {
@@ -249,6 +253,45 @@ def map_media_results(data: dict[str, Any]) -> List[AnimeSearchResult]:
     return output
 
 
+@router.get("/streaming", response_model=StreamingAvailability)
+async def streaming_availability(
+    title: str = Query(min_length=2, max_length=180),
+) -> StreamingAvailability:
+    normalized_title = title.strip()
+    if not normalized_title:
+        raise HTTPException(status_code=400, detail="Titel darf nicht leer sein.")
+
+    providers: list[StreamingProvider] = []
+    lookup_available = False
+    try:
+        providers_raw = await werstreamt_client.fetch_providers()
+        lookup_available = True
+        for item in providers_raw:
+            name = item.get("name")
+            if not isinstance(name, str) or not name.strip():
+                continue
+            provider_id = item.get("id")
+            providers.append(
+                StreamingProvider(
+                    provider_id=provider_id if isinstance(provider_id, int) else None,
+                    name=name.strip(),
+                    logo_url=item.get("logo"),
+                )
+            )
+    except Exception:
+        lookup_available = False
+
+    filter_url = werstreamt_client.build_filter_url(normalized_title)
+    return StreamingAvailability(
+        title=normalized_title,
+        link_url=filter_url,
+        filter_url=filter_url,
+        widget_url=werstreamt_client.build_widget_url(normalized_title),
+        providers=providers,
+        provider_lookup_available=lookup_available,
+    )
+
+
 @router.get("/search", response_model=list[AnimeSearchResult])
 async def search_anime(search: str = Query(min_length=2, max_length=100)) -> list[AnimeSearchResult]:
     try:
@@ -422,4 +465,3 @@ async def airing_anime(
     except AniListError as error:
         raise HTTPException(status_code=502, detail="AniList airing data unavailable") from error
     return map_media_results(data)
-
