@@ -137,8 +137,7 @@ function AnimeDetailModal({
   const [expandedDesc, setExpandedDesc] = useState(false);
   const [showVideoTrailer, setShowVideoTrailer] = useState(false);
   const [streaming, setStreaming] = useState<StreamingAvailability | null>(null);
-  const [streamingLoading, setStreamingLoading] = useState(false);
-  const [streamingError, setStreamingError] = useState<string | null>(null);
+  const [streamingError, setStreamingError] = useState<{ title: string; message: string } | null>(null);
 
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
@@ -151,26 +150,22 @@ function AnimeDetailModal({
   useEffect(() => {
     const lookupTitle = details?.title || target.title;
     if (!lookupTitle) {
-      setStreaming(null);
-      setStreamingError(null);
-      setStreamingLoading(false);
       return;
     }
     const controller = new AbortController();
-    setStreamingLoading(true);
-    setStreamingError(null);
     api
       .streaming(lookupTitle, controller.signal)
       .then((data) => {
         setStreaming(data);
+        setStreamingError(null);
       })
       .catch((err) => {
         if (err?.name === "AbortError") return;
         setStreaming(null);
-        setStreamingError(errorMessage(err, "WerStreamt.es-Daten konnten nicht geladen werden."));
-      })
-      .finally(() => {
-        setStreamingLoading(false);
+        setStreamingError({
+          title: lookupTitle,
+          message: errorMessage(err, "WerStreamt.es-Daten konnten nicht geladen werden."),
+        });
       });
     return () => controller.abort();
   }, [details?.title, target.title]);
@@ -180,6 +175,10 @@ function AnimeDetailModal({
   const isDismissed = entry?.status === "dismissed";
   const displayTitle = details?.title || target.title || "Anime Details";
   const coverUrl = details?.cover_image || target.cover_image;
+  const currentStreamingTitle = details?.title || target.title || "";
+  const hasCurrentStreaming = !!currentStreamingTitle && streaming?.title === currentStreamingTitle;
+  const currentStreamingError = streamingError?.title === currentStreamingTitle ? streamingError.message : null;
+  const isStreamingLoading = !!currentStreamingTitle && !hasCurrentStreaming && !currentStreamingError;
 
   // Bestimme vollständige Liste der Staffeln (entweder aus dem übergebenen target oder aus Relationen)
   const seasonsList = useMemo<SeasonItem[]>(() => {
@@ -769,14 +768,14 @@ function AnimeDetailModal({
                         )}
                       </div>
 
-                      {streamingLoading ? (
+                      {isStreamingLoading ? (
                         <div className="flex items-center gap-2 text-xs text-muted-foreground">
                           <SpinnerIcon width={14} height={14} />
                           Lade Streaming-Informationen …
                         </div>
-                      ) : streamingError ? (
-                        <p className="text-xs text-rose-400">{streamingError}</p>
-                      ) : streaming?.widget_url ? (
+                      ) : currentStreamingError ? (
+                        <p className="text-xs text-rose-400">{currentStreamingError}</p>
+                      ) : hasCurrentStreaming && streaming?.widget_url ? (
                         <div className="space-y-2">
                           <p className="text-xs text-muted-foreground">
                             Flatrate, Leihen und Kaufen direkt im offiziellen WerStreamt.es-Widget.
